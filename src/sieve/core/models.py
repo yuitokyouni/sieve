@@ -11,6 +11,7 @@ Design rules, enforced by tests:
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
@@ -238,4 +239,66 @@ HASH_EXCLUDED_PATHS = (
     ("run_manifest", "environment"),
     ("dataset", "source_uri"),
     ("artifact_index",),
+)
+
+
+class MetricComparison(_Model):
+    """One metric's A-vs-B comparison in a model-update regression test."""
+
+    metric_ref: str
+    n_a: int
+    n_b: int
+    ks_ab: float | None = None
+    p_value: float | None = None
+    adjusted_p_value: float | None = None
+    median_a: float | None = None
+    median_b: float | None = None
+    status_a_vs_reference: Status
+    status_b_vs_reference: Status
+    verdict: Literal["CHANGED", "NOT_SEPARATED", "INSUFFICIENT"]
+    caveats: list[str] = Field(default_factory=list)
+
+
+class CompareSide(_Model):
+    """Identity of one side of a comparison, copied from its sealed bundle."""
+
+    label: str                    # "A" (baseline/old) or "B" (candidate/new)
+    bundle_hash: str
+    model_id: str
+    model_version: str
+    display_name: str
+    input_hash: str
+    n_windows: int
+
+
+class CompareBundle(_Model):
+    """Durable artifact of `sieve compare`: the change-approval evidence.
+
+    Compares two sealed runs of the SAME suite version. Answers one question
+    per metric: did the update change this dimension's window distribution?
+    Never aggregates; CHANGED on one metric says nothing about the others.
+    """
+
+    schema_version: str = SCHEMA_VERSION
+    compare_id: str
+    created_at: datetime
+    sieve_version: str
+    master_seed: int
+    suite_id: str
+    suite_version: str
+    suite_hash: str
+    claim_id: str
+    inference: dict[str, JsonValue] = Field(default_factory=dict)
+    side_a: CompareSide
+    side_b: CompareSide
+    results: list[MetricComparison]
+    caveats: list[str] = Field(default_factory=list)
+    compare_hash: str = ""
+
+
+# Volatile fields of the compare artifact (same nulling rules as the bundle).
+COMPARE_HASH_EXCLUDED_PATHS = (
+    ("compare_hash",),
+    ("compare_id",),
+    ("created_at",),
 )

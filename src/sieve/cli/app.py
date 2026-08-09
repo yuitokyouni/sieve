@@ -125,6 +125,47 @@ def test(
 
 
 @app.command()
+def compare(
+    run_a: Path = typer.Argument(..., help="baseline run directory (old "
+                                 "model version, already sieve-tested)"),
+    run_b: Path = typer.Argument(..., help="candidate run directory (new "
+                                 "model version)"),
+    out: Path = typer.Option(None, "--out", help="output directory "
+                             "(default .sieve/compares/<id>)"),
+    seed: int = typer.Option(20260802, "--seed"),
+):
+    """Model-update regression: did the new version change any dimension?
+
+    Both runs must be sealed, verifiable and from the same suite version.
+    Writes compare.json (sealed), compare.sha256 and report/index.html.
+    CHANGED is a result, not an error: exit code stays 0.
+    """
+    from sieve.evaluation.compare import CompareInputError, load_compare, run_compare
+
+    try:
+        out_dir = run_compare(run_a, run_b, out_dir=out, master_seed=seed)
+    except CompareInputError as e:
+        code = EXIT_TAMPER if "verification" in str(e) else EXIT_INPUT
+        _fail(code, str(e))
+    except FileNotFoundError as e:
+        _fail(EXIT_MISSING, str(e))
+
+    c = load_compare(out_dir)
+    typer.echo(f"compare {c.compare_id} → {out_dir}")
+    typer.echo(f"A: {c.side_a.display_name} v{c.side_a.model_version}   "
+               f"B: {c.side_b.display_name} v{c.side_b.model_version}")
+    for r in c.results:
+        mid = r.metric_ref.partition("@")[0]
+        mark = {"CHANGED": typer.colors.RED,
+                "NOT_SEPARATED": typer.colors.GREEN}.get(r.verdict)
+        typer.secho(f"  {r.verdict:<14} {mid:<20} "
+                    f"A:{r.status_a_vs_reference.value:<12} "
+                    f"B:{r.status_b_vs_reference.value}", fg=mark)
+    typer.echo(f"compare seal {c.compare_hash[:16]}…")
+    typer.echo("verdicts are per-metric; no aggregate exists")
+
+
+@app.command()
 def verify(run_dir: Path = typer.Argument(..., help="run directory or "
                                           "evidence_bundle.json")):
     """Recompute the bundle hash and every artifact hash; report mismatches.

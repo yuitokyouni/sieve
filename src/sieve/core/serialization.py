@@ -41,12 +41,12 @@ def canonical_bytes(data: dict) -> bytes:
                        separators=(",", ":"), allow_nan=False) + "\n").encode()
 
 
-def null_out_excluded(data: dict) -> dict:
+def null_out_excluded(data: dict, paths=HASH_EXCLUDED_PATHS) -> dict:
     """Return a copy with volatile fields set to null (shape preserved)."""
     import copy
 
     out = copy.deepcopy(data)
-    for path in HASH_EXCLUDED_PATHS:
+    for path in paths:
         node = out
         for key in path[:-1]:
             if not isinstance(node, dict) or key not in node:
