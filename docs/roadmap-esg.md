@@ -67,6 +67,12 @@ with the same `MetricSpec` shape.
    the strongest provenance a metric can have.
 4. **Martingale suite** (risk-neutral): new inference (unit-root-free
    drift tests on discounted paths, repricing errors), separate suite id.
+5. **Paired comparison mode.** When both model versions can consume the
+   same innovation stream (common random numbers), per-window differences
+   become the natural unit and a paired test replaces the permutation —
+   much higher power for small recalibrations. Requires an input contract
+   for paired runs; the current permutation design assumes independent
+   seeds and its measured size covers only that case.
 
 ## Sequence
 

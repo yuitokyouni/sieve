@@ -68,8 +68,43 @@ def test_compare_sees_what_reference_gate_misses(compared):
     c = load_compare(compared)
     row = {r.metric_ref.partition("@")[0]: r for r in c.results}["acf_abs_1"]
     assert row.verdict == "CHANGED"
+    assert row.transition == "CHANGED_WITHIN_GATE"
     assert row.status_a_vs_reference.value == "PASS"
     assert row.status_b_vs_reference.value == "PASS"
+    assert row.median_change_pct is not None and row.median_change_pct < -30
+
+
+def test_declared_parameter_diff_matches_manifests(compared):
+    c = load_compare(compared)
+    diff = {pc.name: (pc.value_a, pc.value_b) for pc in c.parameter_changes}
+    assert diff["beta"] == (0.8751463025418191, 0.80)
+    assert diff["t_df"] == (6.466697865253001, 30.0)
+    assert "omega" not in diff and "alpha" not in diff
+
+
+def test_approval_policy_routes_to_review(compared):
+    c = load_compare(compared)
+    a = c.approval
+    assert a is not None
+    assert a.outcome == "REVIEW_REQUIRED"
+    assert a.policy_id and a.policy_version and a.policy_text
+    joined = " ".join(a.triggered_by)
+    assert "excess_kurtosis" in joined and "acf_abs_1" in joined
+    # improvements alone never trigger; leverage FAIL->FAIL must not appear
+    assert "leverage" not in joined
+
+
+def test_transitions_classified(compared):
+    c = load_compare(compared)
+    tr = {r.metric_ref.partition("@")[0]: r.transition for r in c.results}
+    assert tr["excess_kurtosis"] == "REGRESSION"
+    assert tr["leverage"] == "STABLE"          # FAIL->FAIL, not separated
+    assert tr["drift"] == "STABLE"
+
+
+def test_no_placeholder_reaches_sealed_artifacts(compared):
+    body = (compared / "compare.json").read_text()
+    assert "PLACEHOLDER" not in body
 
 
 def test_self_compare_is_not_separated(runs, tmp_path):
@@ -78,6 +113,9 @@ def test_self_compare_is_not_separated(runs, tmp_path):
     c = load_compare(out)
     assert all(r.verdict == "NOT_SEPARATED" for r in c.results)
     assert all(r.ks_ab == 0.0 for r in c.results)
+    assert not c.parameter_changes
+    assert c.approval.outcome == "NO_CHANGE_DETECTED"
+    assert c.approval.triggered_by == []
 
 
 def test_deterministic_compare(runs, tmp_path):

@@ -6,28 +6,32 @@
 <title>{{ product }} model-update comparison — {{ c.side_a.display_name }} → {{ c.side_b.display_name }}</title>
 <style>
   :root { --ink:#14181f; --muted:#5a6577; --rule:#d5dce4; --panel:#f5f7fa;
-          --same:#1b7a44; --chg:#b8471f; --na:#5a6577; }
+          --same:#1b7a44; --chg:#b8471f; --warn:#a06a00; --na:#5a6577; }
   * { box-sizing: border-box; }
   body { margin:0; font: 15px/1.7 system-ui, sans-serif; color:var(--ink); }
-  .wrap { max-width: 62rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .wrap { max-width: 66rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
   h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
   h2 { font-size: 1.1rem; border-bottom: 2px solid var(--ink);
        padding-bottom:.3rem; margin: 2.2rem 0 .8rem; }
   .muted { color: var(--muted); }
-  table { border-collapse: collapse; width: 100%; font-size: .92em; }
-  th, td { text-align: left; padding: .45rem .6rem;
+  table { border-collapse: collapse; width: 100%; font-size: .9em; }
+  th, td { text-align: left; padding: .45rem .55rem;
            border-bottom: 1px solid var(--rule); vertical-align: top; }
   th { color: var(--muted); font-weight: 600; }
   .num { font-variant-numeric: tabular-nums; text-align: right; }
   .v { font-weight: 700; font-size: .85em; letter-spacing: .03em; }
-  .v.CHANGED { color: var(--chg); }
-  .v.NOT_SEPARATED { color: var(--same); }
-  .v.INSUFFICIENT { color: var(--na); }
+  .v.CHANGED, .v.REGRESSION, .v.REVIEW_REQUIRED { color: var(--chg); }
+  .v.NOT_SEPARATED, .v.STABLE, .v.IMPROVEMENT, .v.NO_CHANGE_DETECTED { color: var(--same); }
+  .v.CHANGED_WITHIN_GATE { color: var(--warn); }
+  .v.INSUFFICIENT, .v.INDETERMINATE { color: var(--na); }
   .st { font-size:.8em; font-weight:600; }
   .st.PASS { color: var(--same); } .st.FAIL { color: var(--chg); }
-  .st.WARN { color:#a06a00; } .st.INSUFFICIENT, .st.NOT_TESTED { color: var(--na); }
+  .st.WARN { color: var(--warn); }
+  .st.INSUFFICIENT, .st.NOT_TESTED { color: var(--na); }
   .box { background: var(--panel); border-left: 4px solid var(--ink);
          padding: .8rem 1rem; margin: 1rem 0; }
+  .decision { border-left-color: var(--chg); }
+  .decision.ok { border-left-color: var(--same); }
   ul { margin:.3rem 0 .6rem 1.2rem; padding:0; }
   footer { margin-top:3rem; border-top:1px solid var(--rule);
            padding-top:1rem; font-size:.85em; color:var(--muted); }
@@ -45,54 +49,84 @@
   <b>A (baseline):</b> {{ c.side_a.display_name }}
   <span class="muted">v{{ c.side_a.model_version }} ·
   {{ c.side_a.n_windows }} windows · bundle
-  <code>{{ c.side_a.bundle_hash[:12] }}…</code></span><br>
+  <code>{{ c.side_a.bundle_hash[:12] }}…</code></span>
+  {% if link_a %}· <a href="{{ link_a }}">full report &amp; findings</a>{% endif %}<br>
   <b>B (candidate):</b> {{ c.side_b.display_name }}
   <span class="muted">v{{ c.side_b.model_version }} ·
   {{ c.side_b.n_windows }} windows · bundle
   <code>{{ c.side_b.bundle_hash[:12] }}…</code></span>
+  {% if link_b %}· <a href="{{ link_b }}">full report &amp; findings</a>{% endif %}
 </div>
 
-<p>Per metric, this report answers one question: <em>did the update change
-this dimension's window distribution?</em> (permutation test over windows,
-{{ c.inference.multiple_testing }}-adjusted, line α =
-{{ c.inference.alpha }}). Each row also shows what both versions do against
-the empirical reference, so a detected change can be read as toward or away
-from realism. Verdicts do not aggregate.</p>
+{% if c.approval %}
+<div class="box decision {{ 'ok' if c.approval.outcome == 'NO_CHANGE_DETECTED' else '' }}">
+  <span class="v {{ c.approval.outcome }}">{{ c.approval.outcome }}</span>
+  <span class="muted">— policy {{ c.approval.policy_id }}@{{ c.approval.policy_version }}
+  over required dimensions: {{ c.approval.required_dimensions|join(", ") }}</span>
+  {% if c.approval.triggered_by %}
+  <ul>{% for t in c.approval.triggered_by %}<li>{{ t }}</li>{% endfor %}</ul>
+  {% endif %}
+  <div class="muted" style="font-size:.85em">{{ c.approval.policy_text }}</div>
+</div>
+{% endif %}
 
-<h2>Per-metric verdicts</h2>
+<h2>1 · What was declared to change</h2>
+{% if c.parameter_changes %}
 <table>
-  <tr><th>Metric</th><th>Verdict (A→B)</th><th class="num">KS(A,B)</th>
-      <th class="num">p (adj)</th><th class="num">median A</th>
-      <th class="num">median B</th><th>A vs ref</th><th>B vs ref</th></tr>
+  <tr><th>Manifest parameter</th><th class="num">A</th><th class="num">B</th></tr>
+  {% for pc in c.parameter_changes %}
+  <tr><td><code>{{ pc.name }}</code></td>
+      <td class="num">{{ pc.value_a }}</td>
+      <td class="num">{{ pc.value_b }}</td></tr>
+  {% endfor %}
+</table>
+<p class="muted">As declared in the two model manifests — what the authors
+say changed. The rows below measure what actually changed.</p>
+{% else %}
+<p>The two manifests declare identical parameters. Any measured change below
+is therefore undeclared — treat it as a provenance question, not only a
+statistical one.</p>
+{% endif %}
+
+<h2>2 · What measurably changed</h2>
+<table>
+  <tr><th>Metric</th><th>Verdict</th><th>Transition</th>
+      <th class="num">KS(A,B)</th><th class="num">p (adj)</th>
+      <th class="num">median A → B</th><th class="num">Δ%</th>
+      <th>A vs ref</th><th>B vs ref</th></tr>
   {% for r in c.results %}
   {% set mid = r.metric_ref.split("@")[0] %}
   <tr>
-    <td><code>{{ mid }}</code></td>
+    <td><code>{{ mid }}</code><br><span class="muted" style="font-size:.8em">{{ r.dimension.replace("_"," ") }}</span></td>
     <td><span class="v {{ r.verdict }}">{{ r.verdict }}</span></td>
+    <td><span class="v {{ r.transition }}">{{ r.transition }}</span></td>
     <td class="num">{{ "%.3f"|format(r.ks_ab) if r.ks_ab is not none else "—" }}</td>
     <td class="num">{{ "%.4f"|format(r.adjusted_p_value) if r.adjusted_p_value is not none else "—" }}</td>
-    <td class="num">{{ "%.4g"|format(r.median_a) if r.median_a is not none else "—" }}</td>
-    <td class="num">{{ "%.4g"|format(r.median_b) if r.median_b is not none else "—" }}</td>
+    <td class="num">{{ "%.3g"|format(r.median_a) if r.median_a is not none else "—" }} →
+                    {{ "%.3g"|format(r.median_b) if r.median_b is not none else "—" }}</td>
+    <td class="num">{{ "%+.0f%%"|format(r.median_change_pct) if r.median_change_pct is not none else "—" }}</td>
     <td><span class="st {{ r.status_a_vs_reference.value }}">{{ r.status_a_vs_reference.value }}</span></td>
     <td><span class="st {{ r.status_b_vs_reference.value }}">{{ r.status_b_vs_reference.value }}</span></td>
   </tr>
   {% endfor %}
 </table>
 
-<h2>How to read this</h2>
+<h2>3 · How to read this</h2>
 <ul>
-  <li><b>CHANGED</b> — the update moved this metric's window distribution
-      beyond the calibrated line. Whether that is acceptable is a claim
-      decision, not a statistic: check the vs-reference columns.</li>
-  <li><b>NOT_SEPARATED</b> — no detectable difference at this line with this
-      many windows. Not a claim of equality.</li>
-  <li><b>INSUFFICIENT</b> — fewer than 5 usable windows on a side.</li>
+  <li><b>REGRESSION</b> — A passed the reference gate, B fails it.</li>
+  <li><b>IMPROVEMENT</b> — A failed, B passes. Never blocks approval.</li>
+  <li><b>CHANGED_WITHIN_GATE</b> — the distribution moved but both versions
+      sit on the same side of the reference gate; the reference test alone
+      would not have noticed. Needs a human judgment: intended or not?</li>
+  <li><b>STABLE</b> — no detected move, gate statuses unchanged.</li>
+  <li><b>NOT_SEPARATED</b> — no detectable difference at this line with
+      this many windows. Not a claim of equality.</li>
 </ul>
 
-<h2>Caveats</h2>
+<h2>4 · Caveats</h2>
 <ul>{% for cv in c.caveats %}<li>{{ cv }}</li>{% endfor %}</ul>
 
-<h2>Provenance</h2>
+<h2>5 · Provenance</h2>
 <table>
   <tr><th>Compare</th><td><code>{{ c.compare_id }}</code> ·
       {{ product|lower }} {{ c.sieve_version }} · seed {{ c.master_seed }}</td></tr>

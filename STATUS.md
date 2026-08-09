@@ -118,7 +118,19 @@ suite per use; ABMs are one kind of generator. Priority order and status:
    `examples/model_update` + frozen evidence in `docs/example-update/`).
    The case shows the gate catching a bad refit the reference test alone
    would have approved (acf_abs_1: halved, both versions PASS vs
-   reference, CHANGED in direct comparison).
+   reference, CHANGED in direct comparison). v0.3.0 turned detection into
+   approval: declared-parameter diff, per-metric transitions
+   (REGRESSION / IMPROVEMENT / CHANGED_WITHIN_GATE / STABLE), a versioned
+   routing policy over required dimensions (REVIEW_REQUIRED /
+   NO_CHANGE_DETECTED — a rule, never a score), and a measured size for
+   the A/B permutation design (tools/calibrate_compare.py,
+   docs/compare-calibration.md) instead of a borrowed alpha claim. A
+   provenance defect found by review is on record: the frozen v2 manifest
+   declared beta unchanged while the generator used beta=0.80 — the seal
+   was intact but sealed a false declaration; manifests and all frozen
+   artifacts were regenerated, and the compare report now shows the
+   declared diff next to the measured changes precisely so this class of
+   mismatch is visible.
 2. **NEXT — `esg-real-world` prototype** against the published NAIC
    scenario files and AAA acceptance criteria (needs the Tier-0.5
    multi-path monthly adapter; scoping in `docs/roadmap-esg.md`).

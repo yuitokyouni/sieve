@@ -46,14 +46,25 @@ sieve compare runs/<run-v1> runs/<run-v2>
 ```
 
 The shipped example is a bad refit (volatility persistence collapsed, tail
-df clipped). The comparison localizes it — `excess_kurtosis`, `hill_left`,
-`acf_abs_1`, `acf_abs_20` CHANGED; `leverage`, `variance_ratio_20`, `drift`
-NOT_SEPARATED — and juxtaposes both versions' vs-reference statuses so a
-reviewer sees the change moving *away* from realism. One row is the reason
-this gate exists: `acf_abs_1` clustering **halved**, both versions still
-PASS against the reference (limited power against ~6 calendar blocks), and
-only the direct A-vs-B test detects it. The output is a sealed
-`compare.json` + report
+df clipped). The report answers the three questions a reviewer asks:
+
+- **What was declared?** The manifest parameter diff: `beta 0.875 → 0.80`,
+  `t_df 6.47 → 30`. Measured changes with no declared cause are flagged as
+  a provenance question, not only a statistical one.
+- **What measurably changed, and which way?** Each metric gets a verdict
+  (CHANGED / NOT_SEPARATED, permutation test with measured size — see
+  `docs/compare-calibration.md`) and a *transition* against the reference
+  gate: REGRESSION, IMPROVEMENT, CHANGED_WITHIN_GATE, STABLE. In the
+  example, `excess_kurtosis` (median −92%) and `acf_abs_20` REGRESS;
+  `acf_abs_1` is the row this gate exists for — clustering **halved**, both
+  versions still PASS the reference (limited power against ~6 calendar
+  blocks), only the direct A-vs-B test sees it: CHANGED_WITHIN_GATE.
+- **Does a human need to look?** A versioned approval policy over the
+  claim's required dimensions — a routing rule, never a score — returns
+  `REVIEW_REQUIRED` with the triggering rows listed (or
+  `NO_CHANGE_DETECTED`; improvements alone never block).
+
+The output is a sealed `compare.json` + report
 ([browse the frozen one](https://yuitokyouni.github.io/sieve/example-update/compare/report/index.html))
 — the same change-approval evidence, in the same format, every release.
 Tampered or cross-suite inputs are refused before anything is computed.

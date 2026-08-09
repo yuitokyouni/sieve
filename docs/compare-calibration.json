@@ -1,0 +1,125 @@
+{
+ "design": {
+  "window": 1000,
+  "alpha": 0.01,
+  "n_draw": 2000,
+  "adjustment": "holm",
+  "test": "window permutation KS",
+  "generator": "garch_t, S&P 500 joint-MLE params",
+  "base_params": [
+   0.011039650497380534,
+   0.11756950878547939,
+   0.8751463025418191,
+   6.466697865253001
+  ]
+ },
+ "size": {
+  "15v15": {
+   "n_pairs": 400,
+   "n_windows_per_side": 15,
+   "familywise_rate": 0.005,
+   "per_metric_rate": {
+    "excess_kurtosis": 0.0,
+    "hill_left": 0.0025,
+    "hill_right": 0.0025,
+    "acf_abs_1": 0.0,
+    "acf_abs_20": 0.0,
+    "leverage": 0.0,
+    "variance_ratio_20": 0.0,
+    "drift": 0.0
+   }
+  },
+  "6v6": {
+   "n_pairs": 200,
+   "n_windows_per_side": 6,
+   "familywise_rate": 0.0,
+   "per_metric_rate": {
+    "excess_kurtosis": 0.0,
+    "hill_left": 0.0,
+    "hill_right": 0.0,
+    "acf_abs_1": 0.0,
+    "acf_abs_20": 0.0,
+    "leverage": 0.0,
+    "variance_ratio_20": 0.0,
+    "drift": 0.0
+   }
+  }
+ },
+ "power": {
+  "beta_0.86": {
+   "n_pairs": 100,
+   "n_windows_per_side": 15,
+   "familywise_rate": 0.03,
+   "per_metric_rate": {
+    "excess_kurtosis": 0.0,
+    "hill_left": 0.0,
+    "hill_right": 0.0,
+    "acf_abs_1": 0.0,
+    "acf_abs_20": 0.03,
+    "leverage": 0.0,
+    "variance_ratio_20": 0.0,
+    "drift": 0.0
+   }
+  },
+  "beta_0.84": {
+   "n_pairs": 100,
+   "n_windows_per_side": 15,
+   "familywise_rate": 0.23,
+   "per_metric_rate": {
+    "excess_kurtosis": 0.01,
+    "hill_left": 0.01,
+    "hill_right": 0.01,
+    "acf_abs_1": 0.07,
+    "acf_abs_20": 0.21,
+    "leverage": 0.0,
+    "variance_ratio_20": 0.0,
+    "drift": 0.0
+   }
+  },
+  "beta_0.82": {
+   "n_pairs": 100,
+   "n_windows_per_side": 15,
+   "familywise_rate": 0.67,
+   "per_metric_rate": {
+    "excess_kurtosis": 0.03,
+    "hill_left": 0.03,
+    "hill_right": 0.02,
+    "acf_abs_1": 0.14,
+    "acf_abs_20": 0.66,
+    "leverage": 0.0,
+    "variance_ratio_20": 0.0,
+    "drift": 0.0
+   }
+  },
+  "beta_0.80_nu30": {
+   "n_pairs": 100,
+   "n_windows_per_side": 15,
+   "familywise_rate": 1.0,
+   "per_metric_rate": {
+    "excess_kurtosis": 1.0,
+    "hill_left": 0.78,
+    "hill_right": 0.84,
+    "acf_abs_1": 0.6,
+    "acf_abs_20": 0.98,
+    "leverage": 0.0,
+    "variance_ratio_20": 0.0,
+    "drift": 0.0
+   }
+  },
+  "nu30_only": {
+   "n_pairs": 100,
+   "n_windows_per_side": 15,
+   "familywise_rate": 0.14,
+   "per_metric_rate": {
+    "excess_kurtosis": 0.1,
+    "hill_left": 0.04,
+    "hill_right": 0.03,
+    "acf_abs_1": 0.0,
+    "acf_abs_20": 0.0,
+    "leverage": 0.0,
+    "variance_ratio_20": 0.0,
+    "drift": 0.0
+   }
+  }
+ }
+}

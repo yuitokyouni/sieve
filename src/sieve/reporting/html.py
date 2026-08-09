@@ -35,10 +35,13 @@ def render_report(out_path: str | Path, bundle: EvidenceBundle,
     return out_path
 
 
-def render_compare(out_path: str | Path, cmp_bundle) -> Path:
+def render_compare(out_path: str | Path, cmp_bundle,
+                   link_a: str | None = None,
+                   link_b: str | None = None) -> Path:
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tpl = _env.get_template("compare.html.j2")
     out_path.write_text(tpl.render(
-        c=cmp_bundle, product=PRODUCT_NAME, footer=REPORT_FOOTER))
+        c=cmp_bundle, product=PRODUCT_NAME, footer=REPORT_FOOTER,
+        link_a=link_a, link_b=link_b))
     return out_path

@@ -243,9 +243,21 @@ HASH_EXCLUDED_PATHS = (
 
 
 class MetricComparison(_Model):
-    """One metric's A-vs-B comparison in a model-update regression test."""
+    """One metric's A-vs-B comparison in a model-update regression test.
+
+    ``verdict`` answers "did the distribution move" (statistics);
+    ``transition`` reads the move against the reference gate:
+
+    - REGRESSION          A passed the reference, B fails it
+    - IMPROVEMENT         A failed, B passes
+    - CHANGED_WITHIN_GATE distribution moved, gate statuses unchanged —
+                          the reference gate cannot see this change
+    - STABLE              no detected move, gate statuses unchanged
+    - INDETERMINATE       an INSUFFICIENT is involved
+    """
 
     metric_ref: str
+    dimension: str = ""
     n_a: int
     n_b: int
     ks_ab: float | None = None
@@ -253,10 +265,39 @@ class MetricComparison(_Model):
     adjusted_p_value: float | None = None
     median_a: float | None = None
     median_b: float | None = None
+    median_change_pct: float | None = None
     status_a_vs_reference: Status
     status_b_vs_reference: Status
     verdict: Literal["CHANGED", "NOT_SEPARATED", "INSUFFICIENT"]
+    transition: Literal["REGRESSION", "IMPROVEMENT", "CHANGED_WITHIN_GATE",
+                        "STABLE", "INDETERMINATE"] = "STABLE"
     caveats: list[str] = Field(default_factory=list)
+
+
+class ParameterChange(_Model):
+    """One declared model-manifest parameter that differs between versions."""
+
+    name: str
+    value_a: JsonValue = None
+    value_b: JsonValue = None
+
+
+class ApprovalAssessment(_Model):
+    """Outcome of a versioned approval policy — a rule, not a score.
+
+    The policy is declared (id@version + full text), applies only to the
+    claim's required dimensions, and yields a categorical outcome with the
+    triggering rows listed. Nothing is weighted, summed or averaged; the
+    outcome is a routing decision (does a human reviewer need to look),
+    never a quality measure.
+    """
+
+    policy_id: str
+    policy_version: str
+    policy_text: str
+    outcome: Literal["NO_CHANGE_DETECTED", "REVIEW_REQUIRED"]
+    triggered_by: list[str] = Field(default_factory=list)
+    required_dimensions: list[str] = Field(default_factory=list)
 
 
 class CompareSide(_Model):
@@ -291,7 +332,9 @@ class CompareBundle(_Model):
     inference: dict[str, JsonValue] = Field(default_factory=dict)
     side_a: CompareSide
     side_b: CompareSide
+    parameter_changes: list[ParameterChange] = Field(default_factory=list)
     results: list[MetricComparison]
+    approval: ApprovalAssessment | None = None
     caveats: list[str] = Field(default_factory=list)
     compare_hash: str = ""
 

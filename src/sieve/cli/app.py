@@ -133,6 +133,10 @@ def compare(
     out: Path = typer.Option(None, "--out", help="output directory "
                              "(default .sieve/compares/<id>)"),
     seed: int = typer.Option(20260802, "--seed"),
+    link_a: str = typer.Option(None, "--link-a", help="href to run A's "
+                               "report, embedded in the compare report"),
+    link_b: str = typer.Option(None, "--link-b", help="href to run B's "
+                               "report"),
 ):
     """Model-update regression: did the new version change any dimension?
 
@@ -143,7 +147,8 @@ def compare(
     from sieve.evaluation.compare import CompareInputError, load_compare, run_compare
 
     try:
-        out_dir = run_compare(run_a, run_b, out_dir=out, master_seed=seed)
+        out_dir = run_compare(run_a, run_b, out_dir=out, master_seed=seed,
+                              link_a=link_a, link_b=link_b)
     except CompareInputError as e:
         code = EXIT_TAMPER if "verification" in str(e) else EXIT_INPUT
         _fail(code, str(e))
@@ -154,15 +159,31 @@ def compare(
     typer.echo(f"compare {c.compare_id} → {out_dir}")
     typer.echo(f"A: {c.side_a.display_name} v{c.side_a.model_version}   "
                f"B: {c.side_b.display_name} v{c.side_b.model_version}")
+    for pc in c.parameter_changes:
+        typer.echo(f"  declared: {pc.name} {pc.value_a} -> {pc.value_b}")
     for r in c.results:
         mid = r.metric_ref.partition("@")[0]
-        mark = {"CHANGED": typer.colors.RED,
-                "NOT_SEPARATED": typer.colors.GREEN}.get(r.verdict)
-        typer.secho(f"  {r.verdict:<14} {mid:<20} "
+        mark = {"REGRESSION": typer.colors.RED,
+                "CHANGED_WITHIN_GATE": typer.colors.YELLOW,
+                "IMPROVEMENT": typer.colors.GREEN,
+                "STABLE": typer.colors.GREEN}.get(r.transition)
+        pct = (f"{r.median_change_pct:+.0f}%"
+               if r.median_change_pct is not None else "—")
+        typer.secho(f"  {r.verdict:<14} {r.transition:<20} {mid:<20} "
+                    f"Δmed {pct:>6}  "
                     f"A:{r.status_a_vs_reference.value:<12} "
                     f"B:{r.status_b_vs_reference.value}", fg=mark)
+    if c.approval:
+        color = (typer.colors.RED if c.approval.outcome == "REVIEW_REQUIRED"
+                 else typer.colors.GREEN)
+        typer.secho(f"approval [{c.approval.policy_id}@"
+                    f"{c.approval.policy_version}]: {c.approval.outcome}",
+                    fg=color, bold=True)
+        for tr in c.approval.triggered_by:
+            typer.echo(f"    - {tr}")
     typer.echo(f"compare seal {c.compare_hash[:16]}…")
-    typer.echo("verdicts are per-metric; no aggregate exists")
+    typer.echo("verdicts are per-metric; the policy routes review, "
+               "it does not score")
 
 
 @app.command()

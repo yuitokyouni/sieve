@@ -1,6 +1,48 @@
 # Changelog
 
-## 0.2.0 — 2026-08-09
+## 0.3.0 — 2026-08-09
+
+Review of v0.2.0 concluded it was "a change-detection report, not a
+change-approval gate", and found a provenance defect in the frozen example.
+This release addresses all three findings.
+
+- **Provenance correction (most important).** The frozen v2 manifest
+  declared "beta unchanged" while the generator used beta = 0.80: the seal
+  was intact but sealed a false declaration. Manifests now state the truth
+  (beta 0.875 → 0.80 plus the nu clip), the placeholder `git_commit` values
+  are replaced by the real commit pinning the generator code, and every
+  frozen artifact is regenerated. The compare report now renders the
+  **declared parameter diff next to the measured changes** — a measured
+  change with no declared cause is flagged as a provenance question — so
+  this exact mismatch class is visible instead of latent.
+- **The compare design is now calibrated, not borrowed.**
+  `tools/calibrate_compare.py` measured the A/B permutation design itself:
+  family-wise false-positive rate **0.005 at 15v15 windows (400 null
+  pairs), 0.000 at 6v6 (200)** — conservative, replacing the unmeasured
+  "slightly liberal" caveat. Power is mapped per effect size: the worked
+  example's regression is detected ~always (kurtosis 1.00, acf_abs_20
+  0.98); |Δβ| ≤ 0.04 persistence drifts and a lone tail-df clip are mostly
+  invisible, and the reports say so (`docs/compare-calibration.md`).
+- **Detection → approval.** Each metric now carries a *transition* read
+  against the reference gate (REGRESSION / IMPROVEMENT /
+  CHANGED_WITHIN_GATE / STABLE / INDETERMINATE) plus median shifts (Δ%),
+  and a **versioned approval policy**
+  (`required-dims-no-unexplained-change@1`) routes the comparison to
+  REVIEW_REQUIRED or NO_CHANGE_DETECTED with the triggering rows listed.
+  A routing rule over required dimensions is not an aggregate score:
+  nothing is weighted, summed or averaged, and improvements alone never
+  block. Compare reports can link both source runs' full reports.
+
+Pinned by this release (all seals moved with sieve_version):
+
+- suite `financial-daily@1.0.0`, suite_hash unchanged
+  `343042f8ceedf18ad2f62eae54501e1e73b8ab59db836804f88fe42105911c9f`
+- frozen example run `docs/example-run/`: bundle_hash recorded in
+  `docs/reproduce.md`
+- frozen comparison `docs/example-update/compare/`: compare_hash recorded
+  in the compare report and `compare.sha256`
+
+## 0.2.0 — 2026-08-09 (not tagged; superseded by 0.3.0 the same day)
 
 `sieve compare`: the model-update regression gate. Two sealed runs of the
 same suite version are compared directly — per metric, a window-permutation
