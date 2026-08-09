@@ -11,10 +11,10 @@ clustering but **fails leverage asymmetry — exactly the mechanism it does not
 contain**. And on the volatility metrics it passes, the report says on the
 same row that those metrics cannot separate GARCH from real markets either:
 
-[![Example Sieve report](docs/report.png)](https://htmlpreview.github.io/?https://github.com/yuitokyouni/sieve/blob/main/docs/example-run/report/index.html)
+[![Example Sieve report](docs/report.png)](https://yuitokyouni.github.io/sieve/example-run/report/index.html)
 
 Read that exact report in your browser
-([rendered](https://htmlpreview.github.io/?https://github.com/yuitokyouni/sieve/blob/main/docs/example-run/report/index.html) ·
+([rendered](https://yuitokyouni.github.io/sieve/example-run/report/index.html) ·
 [files](docs/example-run/)), or verify its integrity without running anything:
 
 ```
