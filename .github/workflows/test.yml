@@ -24,3 +24,16 @@ jobs:
           sieve test examples/csv_returns --suite financial-daily@1.0 \
             --claim descriptive-market-dynamics --out /tmp/runs
           sieve verify /tmp/runs/*
+      - name: seal reproduces on this machine
+        # The reproduction contract (docs/reproduce.md): same input bytes +
+        # suite + seed + package versions => the same scientific seal on any
+        # machine. This runner is not the machine that produced the committed
+        # example, so equality here is a continuous cross-machine check. A
+        # mismatch after a numerical-stack upgrade is the contract noticing a
+        # changed computation, not a flake — repin or refresh the example.
+        run: |
+          got=$(python -c "import json,glob;print(json.load(open(glob.glob('/tmp/runs/*/evidence_bundle.json')[0]))['bundle_hash'])")
+          exp=$(python -c "import json;print(json.load(open('docs/example-run/evidence_bundle.json'))['bundle_hash'])")
+          echo "committed example: $exp"
+          echo "this runner:       $got"
+          test "$got" = "$exp"
