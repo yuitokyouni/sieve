@@ -82,8 +82,9 @@ implemented, and the reference-period label matches the shipped windows.
 
 ### Acceptance criteria → tests
 
-78 total: 69 run standalone, 8 parity tests run in the CI `parity` job
-against a pinned sieve-bench checkout, 1 requires locally fetched raw data.
+85 total (as of v0.2.0): 76 run standalone, 8 parity tests run in the CI
+`parity` job against a pinned sieve-bench checkout, 1 requires locally
+fetched raw data. Compare gate: `tests/integration/test_compare.py`.
 
 | Criterion | Test |
 |---|---|
@@ -102,9 +103,28 @@ against a pinned sieve-bench checkout, 1 requires locally fetched raw data.
 
 ## Not in M1/M1.5 (deliberately)
 
-Tier-1/2 adapters, `sieve compare`, multiscale/regime/intervention dimensions
-(they appear as NOT_TESTED, honestly), suite update tooling, any service
-component.
+Tier-1/2 adapters, multiscale/regime/intervention dimensions (they appear as
+NOT_TESTED, honestly), suite update tooling, any service component.
+(`sieve compare` was also deferred here and later shipped in v0.2.0 — the
+scenario-generator strategy supplied the concrete demand the deferral was
+waiting for.)
+
+## v0.2.0 — the change-approval gate (strategy: scenario generators)
+
+Reframe adopted: Sieve evaluates scenario-generating models, one versioned
+suite per use; ABMs are one kind of generator. Priority order and status:
+
+1. **DONE — model-update regression case** (`sieve compare` +
+   `examples/model_update` + frozen evidence in `docs/example-update/`).
+   The case shows the gate catching a bad refit the reference test alone
+   would have approved (acf_abs_1: halved, both versions PASS vs
+   reference, CHANGED in direct comparison).
+2. **NEXT — `esg-real-world` prototype** against the published NAIC
+   scenario files and AAA acceptance criteria (needs the Tier-0.5
+   multi-path monthly adapter; scoping in `docs/roadmap-esg.md`).
+3. Hearings with life-insurance ERM/actuarial and insurance consultants,
+   carrying both frozen artifacts.
+4. LOB / system-wide ABM suites only with a concrete research partner.
 
 ## Next milestone: Independent reproduction #1 — not M2
 
@@ -116,8 +136,9 @@ environment, runs `docs/reproduce.md` end to end — clone, golden command,
 `leverage_asymmetry = FAIL`, `sieve verify`, seal comparison — and we record
 "Independently reproduced by X on YYYY-MM-DD" in the README. The sequence
 after that stays credibility-first: external model evaluation #1 → external
-author response #1 → community contribution #1 → private pilot #1. M2
-resumes when an external party actually needs comparison.
+author response #1 → community contribution #1 → private pilot #1.
+(`compare` itself shipped in v0.2.0 once the scenario-generator strategy
+made its user concrete; the reproduction milestone is unchanged.)
 
 ## Known limitations on record
 

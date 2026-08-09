@@ -69,7 +69,7 @@ The scientific seal in `evidence_bundle.json` (`bundle_hash`) and printed by
 `sieve test`:
 
 ```
-bad5cb0455f78d2603e1a6767209a11eaacc86e5496d56c9cce4aa9cb87a6490
+bafe49e91c2064fd046c8af1f0fc63478803823ca0b13ea6de10d2c32689ac5c
 ```
 
 The suite hash recorded in the same bundle (`suite.suite_hash`):
@@ -95,6 +95,8 @@ request was made:
   + fresh venv + `constraints.txt`; statuses, both integrity layers and the
   byte-exact seal reproduced. Verbatim log:
   [`docs/reproductions/2026-08-09-repro0.md`](reproductions/2026-08-09-repro0.md).
+  Performed at v0.1.1 (seal `bad5cb04…` as logged); the seal pins the sieve
+  version, so the current expected seal above differs from that run's.
 - Named third-party reproductions will be listed here as they happen.
 
 ## If something does not match

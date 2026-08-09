@@ -1,0 +1,179 @@
+[
+ {
+  "adjusted_p_value": 1.0,
+  "artifact_refs": [],
+  "baseline_ref": null,
+  "caveats": [
+   "decision line alpha=0.01 is the calibrated nominal level whose true size is 3-5% under the reference dependence structure (research selftest)",
+   "at the same decision line this metric does NOT separate the reference from: block_bootstrap, garch_t — agreement with the reference on this metric is weak evidence for the stated claim",
+   "PASS means 'not separated from the reference at the calibrated line', not 'validated'; power against modest differences is limited by ~6 independent calendar blocks"
+  ],
+  "ci_high": null,
+  "ci_low": null,
+  "effect_size": 0.15591397849462374,
+  "metric_ref": "excess_kurtosis@1",
+  "n_reference": 124,
+  "n_simulation": 15,
+  "p_value": 0.8820589705147426,
+  "prespecification": "PRE_SPECIFIED",
+  "statistic_name": "ks",
+  "statistic_value": 0.15591397849462374,
+  "status": "PASS",
+  "test_id": "excess_kurtosis::vs-reference"
+ },
+ {
+  "adjusted_p_value": 0.7071464267866067,
+  "artifact_refs": [],
+  "baseline_ref": null,
+  "caveats": [
+   "decision line alpha=0.01 is the calibrated nominal level whose true size is 3-5% under the reference dependence structure (research selftest)",
+   "at the same decision line this metric does NOT separate the reference from: block_bootstrap, garch_t — agreement with the reference on this metric is weak evidence for the stated claim",
+   "PASS means 'not separated from the reference at the calibrated line', not 'validated'; power against modest differences is limited by ~6 independent calendar blocks"
+  ],
+  "ci_high": null,
+  "ci_low": null,
+  "effect_size": 0.31182795698924726,
+  "metric_ref": "hill_left@1",
+  "n_reference": 124,
+  "n_simulation": 15,
+  "p_value": 0.14142928535732133,
+  "prespecification": "PRE_SPECIFIED",
+  "statistic_name": "ks",
+  "statistic_value": 0.31182795698924726,
+  "status": "PASS",
+  "test_id": "hill_left::vs-reference"
+ },
+ {
+  "adjusted_p_value": 1.0,
+  "artifact_refs": [],
+  "baseline_ref": null,
+  "caveats": [
+   "decision line alpha=0.01 is the calibrated nominal level whose true size is 3-5% under the reference dependence structure (research selftest)",
+   "at the same decision line this metric does NOT separate the reference from: student_t, iid_bootstrap, block_bootstrap, garch_t — agreement with the reference on this metric is weak evidence for the stated claim",
+   "PASS means 'not separated from the reference at the calibrated line', not 'validated'; power against modest differences is limited by ~6 independent calendar blocks"
+  ],
+  "ci_high": null,
+  "ci_low": null,
+  "effect_size": 0.18064516129032254,
+  "metric_ref": "hill_right@1",
+  "n_reference": 124,
+  "n_simulation": 15,
+  "p_value": 0.7611194402798601,
+  "prespecification": "PRE_SPECIFIED",
+  "statistic_name": "ks",
+  "statistic_value": 0.18064516129032254,
+  "status": "PASS",
+  "test_id": "hill_right::vs-reference"
+ },
+ {
+  "adjusted_p_value": 0.11694152923538231,
+  "artifact_refs": [],
+  "baseline_ref": null,
+  "caveats": [
+   "decision line alpha=0.01 is the calibrated nominal level whose true size is 3-5% under the reference dependence structure (research selftest)",
+   "at the same decision line this metric does NOT separate the reference from: block_bootstrap, garch_norm, garch_t — agreement with the reference on this metric is weak evidence for the stated claim",
+   "PASS means 'not separated from the reference at the calibrated line', not 'validated'; power against modest differences is limited by ~6 independent calendar blocks"
+  ],
+  "ci_high": null,
+  "ci_low": null,
+  "effect_size": 0.41720430107526885,
+  "metric_ref": "acf_abs_1@1",
+  "n_reference": 124,
+  "n_simulation": 15,
+  "p_value": 0.019490254872563718,
+  "prespecification": "PRE_SPECIFIED",
+  "statistic_name": "ks",
+  "statistic_value": 0.41720430107526885,
+  "status": "PASS",
+  "test_id": "acf_abs_1::vs-reference"
+ },
+ {
+  "adjusted_p_value": 1.0,
+  "artifact_refs": [],
+  "baseline_ref": null,
+  "caveats": [
+   "decision line alpha=0.01 is the calibrated nominal level whose true size is 3-5% under the reference dependence structure (research selftest)",
+   "at the same decision line this metric does NOT separate the reference from: garch_norm, garch_t — agreement with the reference on this metric is weak evidence for the stated claim",
+   "PASS means 'not separated from the reference at the calibrated line', not 'validated'; power against modest differences is limited by ~6 independent calendar blocks"
+  ],
+  "ci_high": null,
+  "ci_low": null,
+  "effect_size": 0.23978494623655916,
+  "metric_ref": "acf_abs_20@1",
+  "n_reference": 124,
+  "n_simulation": 15,
+  "p_value": 0.41879060469765117,
+  "prespecification": "PRE_SPECIFIED",
+  "statistic_name": "ks",
+  "statistic_value": 0.23978494623655916,
+  "status": "PASS",
+  "test_id": "acf_abs_20::vs-reference"
+ },
+ {
+  "adjusted_p_value": 0.00399800099950025,
+  "artifact_refs": [],
+  "baseline_ref": null,
+  "caveats": [
+   "decision line alpha=0.01 is the calibrated nominal level whose true size is 3-5% under the reference dependence structure (research selftest)",
+   "at the same decision line this metric does NOT separate the reference from: block_bootstrap — agreement with the reference on this metric is weak evidence for the stated claim"
+  ],
+  "ci_high": null,
+  "ci_low": null,
+  "effect_size": 0.9596774193548387,
+  "metric_ref": "leverage@1",
+  "n_reference": 124,
+  "n_simulation": 15,
+  "p_value": 0.0004997501249375312,
+  "prespecification": "PRE_SPECIFIED",
+  "statistic_name": "ks",
+  "statistic_value": 0.9596774193548387,
+  "status": "FAIL",
+  "test_id": "leverage::vs-reference"
+ },
+ {
+  "adjusted_p_value": 1.0,
+  "artifact_refs": [],
+  "baseline_ref": null,
+  "caveats": [
+   "decision line alpha=0.01 is the calibrated nominal level whose true size is 3-5% under the reference dependence structure (research selftest)",
+   "at the same decision line this metric does NOT separate the reference from: block_bootstrap — agreement with the reference on this metric is weak evidence for the stated claim",
+   "this diagnostic was added post hoc during the research phase and should be read as a discovered failure mode, not as pre-registered confirmatory evidence",
+   "PASS means 'not separated from the reference at the calibrated line', not 'validated'; power against modest differences is limited by ~6 independent calendar blocks"
+  ],
+  "ci_high": null,
+  "ci_low": null,
+  "effect_size": 0.18870967741935485,
+  "metric_ref": "variance_ratio_20@1",
+  "n_reference": 124,
+  "n_simulation": 15,
+  "p_value": 0.6116941529235382,
+  "prespecification": "POST_HOC",
+  "statistic_name": "ks",
+  "statistic_value": 0.18870967741935485,
+  "status": "PASS",
+  "test_id": "variance_ratio_20::vs-reference"
+ },
+ {
+  "adjusted_p_value": 0.010494752623688156,
+  "artifact_refs": [],
+  "baseline_ref": null,
+  "caveats": [
+   "decision line alpha=0.01 is the calibrated nominal level whose true size is 3-5% under the reference dependence structure (research selftest)",
+   "at the same decision line this metric does NOT separate the reference from: student_t, iid_bootstrap, block_bootstrap, garch_norm — agreement with the reference on this metric is weak evidence for the stated claim",
+   "this diagnostic was added post hoc during the research phase and should be read as a discovered failure mode, not as pre-registered confirmatory evidence",
+   "PASS means 'not separated from the reference at the calibrated line', not 'validated'; power against modest differences is limited by ~6 independent calendar blocks"
+  ],
+  "ci_high": null,
+  "ci_low": null,
+  "effect_size": 0.6026881720430108,
+  "metric_ref": "drift@1",
+  "n_reference": 124,
+  "n_simulation": 15,
+  "p_value": 0.0014992503748125937,
+  "prespecification": "POST_HOC",
+  "statistic_name": "ks",
+  "statistic_value": 0.6026881720430108,
+  "status": "PASS",
+  "test_id": "drift::vs-reference"
+ }
+]

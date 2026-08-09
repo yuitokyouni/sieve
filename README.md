@@ -33,6 +33,31 @@ sieve test examples/csv_returns --suite financial-daily@1.0 --claim descriptive-
 See [docs/reproduce.md](docs/reproduce.md) for the exact reproduction
 contract and expected hashes.
 
+## Model-update regression: the change-approval gate
+
+The workflow with the clearest practical use: a scenario generator gets
+recalibrated or replaced, and someone must decide whether the new version
+may go into production. Run both versions, then compare them directly:
+
+```
+sieve test examples/model_update/v1 --suite financial-daily@1.0 --claim descriptive-market-dynamics --out runs
+sieve test examples/model_update/v2 --suite financial-daily@1.0 --claim descriptive-market-dynamics --out runs
+sieve compare runs/<run-v1> runs/<run-v2>
+```
+
+The shipped example is a bad refit (volatility persistence collapsed, tail
+df clipped). The comparison localizes it — `excess_kurtosis`, `hill_left`,
+`acf_abs_1`, `acf_abs_20` CHANGED; `leverage`, `variance_ratio_20`, `drift`
+NOT_SEPARATED — and juxtaposes both versions' vs-reference statuses so a
+reviewer sees the change moving *away* from realism. One row is the reason
+this gate exists: `acf_abs_1` clustering **halved**, both versions still
+PASS against the reference (limited power against ~6 calendar blocks), and
+only the direct A-vs-B test detects it. The output is a sealed
+`compare.json` + report
+([browse the frozen one](https://yuitokyouni.github.io/sieve/example-update/compare/report/index.html))
+— the same change-approval evidence, in the same format, every release.
+Tampered or cross-suite inputs are refused before anything is computed.
+
 ## What a run produces
 
 ```
@@ -84,20 +109,35 @@ needs at least five non-overlapping windows of 1000 daily observations
 testing against the shipped reference; shorter inputs get INSUFFICIENT, which
 is an answer, not an error.
 
-It follows that Sieve does not claim "any simulation can be adapted". A
-claim needs a suite whose evidence matches it. A limit-order-book or
-market-microstructure simulation should not be forced to emit 20 years of
-daily returns — it needs its own claims and its own tests (spread, depth,
-order-flow imbalance, impact, inventory response), which is future suite
-work, not an adapter:
+It follows that Sieve does not claim "any simulation can be adapted". The
+measured objects are **scenario-generating models, one suite per use**: a
+claim needs a suite whose evidence matches it, and an agent-based model is
+one kind of generator, not a separate product. Two distinctions are
+load-bearing:
+
+- **Real-world vs risk-neutral scenarios need different suites.** Stylized
+  facts (tails, clustering, leverage, dependence) test real-world-measure
+  realism. Risk-neutral scenario sets are validated by martingale tests and
+  market-consistency repricing — different mathematics, never the same
+  suite. `financial-daily@1.0` is a real-world-measure suite.
+- **A limit-order-book simulator should not be forced to emit 20 years of
+  daily returns** — it needs its own claims and tests (spread, depth,
+  order-flow imbalance, impact, inventory response), which is future suite
+  work, not an adapter.
 
 ```
 Sieve Core
 │
-├── financial-daily            (this release)
+├── financial-daily             (this release; real-world measure)
 │   └── descriptive-market-dynamics
 │
-├── market-microstructure      (planned)
+├── esg-real-world              (planned: insurer economic scenario sets;
+│   └── …                        NAIC-style stylized facts + acceptance
+│                                criteria; monthly multi-path input)
+├── esg-risk-neutral            (planned: martingale / market-consistency
+│   └── …                        tests — deliberately a separate suite)
+│
+├── market-microstructure       (planned; needs a research phase)
 │   ├── descriptive-lob-dynamics
 │   └── execution-response
 │
@@ -105,8 +145,9 @@ Sieve Core
 ```
 
 The architecture makes this natural rather than inconvenient: evidence is
-claim-scoped, so different simulation kinds get different suites instead of
-one universal "realism" test.
+claim-scoped, so different generator kinds get different suites instead of
+one universal "realism" test. Scoping notes for the ESG suites:
+[docs/roadmap-esg.md](docs/roadmap-esg.md).
 
 ## Where the science comes from
 
@@ -135,6 +176,7 @@ gaps; the no-score invariant is enforced by tests.
 ```
 sieve doctor                 environment + suite check (offline, no network)
 sieve test INPUT --suite S --claim C [--out DIR] [--seed N]
+sieve compare RUN_A RUN_B    model-update regression between two sealed runs
 sieve verify RUN_DIR         exit 0 intact / 4 modified / 3 missing
 sieve report RUN_DIR         re-render HTML from the stored bundle
 sieve suites list|show       installed suites, their hashes and claims

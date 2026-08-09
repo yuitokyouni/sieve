@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sieve-validation"
-version = "0.1.1"
+version = "0.2.0"
 description = "Evidence infrastructure for deciding what a simulation result does and does not support. Local, offline, no score."
 readme = "README.md"
 requires-python = ">=3.11"

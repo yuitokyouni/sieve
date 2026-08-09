@@ -1,6 +1,6 @@
 {
- "command": "sieve test examples/csv_returns --suite financial-daily@1.0 --claim descriptive-market-dynamics",
- "created_at": "2026-08-09T18:05:37.871040Z",
+ "command": "sieve test examples/model_update/v2 --suite financial-daily@1.0 --claim descriptive-market-dynamics",
+ "created_at": "2026-08-09T18:05:52.666085Z",
  "environment": {
   "numpy": "2.4.6",
   "platform": "Linux-6.18.5-fc-v20-x86_64-with-glibc2.39",
@@ -9,10 +9,10 @@
   "python": "3.11.15",
   "scipy": "1.17.1"
  },
- "input_hash": "888413387c0f81bcafcfdb3d75fe2d6945727bc0ffd4232650a8021a94381b81",
- "input_path": "examples/csv_returns",
+ "input_hash": "b99872a25a808b7d05ebbde7f8b3763a8c093f87c54030034dee054369124c25",
+ "input_path": "examples/model_update/v2",
  "master_seed": 20260802,
- "run_id": "a49a0340dfca",
+ "run_id": "00b448947b63",
  "schema_version": "0.1.0",
  "seed_tree": [
   {

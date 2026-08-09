@@ -1,0 +1,21 @@
+model_id: example-market-sim
+model_version: "2.3.0"
+display_name: Example market scenario generator
+model_family: econometric
+code_uri: https://github.com/yuitokyouni/sieve/tree/main/examples/model_update
+git_commit: see-generate-py-seed-11
+authors:
+  - sieve examples
+license: MIT
+notes: >-
+  Baseline version for the model-update regression example: GARCH(1,1)-t
+  with the shipped S&P 500 joint-MLE parameters (nu = 6.47). 15,000 days,
+  seed 11; regenerate with generate.py.
+parameters:
+  generator: garch_t
+  omega: 0.011039650497380534
+  alpha: 0.11756950878547939
+  beta: 0.8751463025418191
+  t_df: 6.466697865253001
+  n: 15000
+  seed: 11

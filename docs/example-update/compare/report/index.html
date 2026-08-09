@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sieve model-update comparison — Example market scenario generator → Example market scenario generator</title>
+<style>
+  :root { --ink:#14181f; --muted:#5a6577; --rule:#d5dce4; --panel:#f5f7fa;
+          --same:#1b7a44; --chg:#b8471f; --na:#5a6577; }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.7 system-ui, sans-serif; color:var(--ink); }
+  .wrap { max-width: 62rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.1rem; border-bottom: 2px solid var(--ink);
+       padding-bottom:.3rem; margin: 2.2rem 0 .8rem; }
+  .muted { color: var(--muted); }
+  table { border-collapse: collapse; width: 100%; font-size: .92em; }
+  th, td { text-align: left; padding: .45rem .6rem;
+           border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .num { font-variant-numeric: tabular-nums; text-align: right; }
+  .v { font-weight: 700; font-size: .85em; letter-spacing: .03em; }
+  .v.CHANGED { color: var(--chg); }
+  .v.NOT_SEPARATED { color: var(--same); }
+  .v.INSUFFICIENT { color: var(--na); }
+  .st { font-size:.8em; font-weight:600; }
+  .st.PASS { color: var(--same); } .st.FAIL { color: var(--chg); }
+  .st.WARN { color:#a06a00; } .st.INSUFFICIENT, .st.NOT_TESTED { color: var(--na); }
+  .box { background: var(--panel); border-left: 4px solid var(--ink);
+         padding: .8rem 1rem; margin: 1rem 0; }
+  ul { margin:.3rem 0 .6rem 1.2rem; padding:0; }
+  footer { margin-top:3rem; border-top:1px solid var(--rule);
+           padding-top:1rem; font-size:.85em; color:var(--muted); }
+  code { background: var(--panel); padding:0 .3em; border-radius:3px;
+         font-size:.9em; }
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>Model-update comparison</h1>
+<div class="muted">Sieve · suite financial-daily@1.0.0
+· claim descriptive-market-dynamics · compare <code>2713b5cd3c3c965a…</code></div>
+
+<div class="box">
+  <b>A (baseline):</b> Example market scenario generator
+  <span class="muted">v2.3.0 ·
+  15 windows · bundle
+  <code>fcbf4d6d817c…</code></span><br>
+  <b>B (candidate):</b> Example market scenario generator
+  <span class="muted">v2.4.0 ·
+  15 windows · bundle
+  <code>25f54c605f85…</code></span>
+</div>
+
+<p>Per metric, this report answers one question: <em>did the update change
+this dimension's window distribution?</em> (permutation test over windows,
+holm-adjusted, line α =
+0.01). Each row also shows what both versions do against
+the empirical reference, so a detected change can be read as toward or away
+from realism. Verdicts do not aggregate.</p>
+
+<h2>Per-metric verdicts</h2>
+<table>
+  <tr><th>Metric</th><th>Verdict (A→B)</th><th class="num">KS(A,B)</th>
+      <th class="num">p (adj)</th><th class="num">median A</th>
+      <th class="num">median B</th><th>A vs ref</th><th>B vs ref</th></tr>
+  
+  
+  <tr>
+    <td><code>excess_kurtosis</code></td>
+    <td><span class="v CHANGED">CHANGED</span></td>
+    <td class="num">0.867</td>
+    <td class="num">0.0040</td>
+    <td class="num">4.958</td>
+    <td class="num">0.4175</td>
+    <td><span class="st PASS">PASS</span></td>
+    <td><span class="st FAIL">FAIL</span></td>
+  </tr>
+  
+  
+  <tr>
+    <td><code>hill_left</code></td>
+    <td><span class="v CHANGED">CHANGED</span></td>
+    <td class="num">0.667</td>
+    <td class="num">0.0040</td>
+    <td class="num">3.004</td>
+    <td class="num">5.032</td>
+    <td><span class="st PASS">PASS</span></td>
+    <td><span class="st FAIL">FAIL</span></td>
+  </tr>
+  
+  
+  <tr>
+    <td><code>hill_right</code></td>
+    <td><span class="v NOT_SEPARATED">NOT_SEPARATED</span></td>
+    <td class="num">0.600</td>
+    <td class="num">0.0220</td>
+    <td class="num">3.136</td>
+    <td class="num">5.056</td>
+    <td><span class="st PASS">PASS</span></td>
+    <td><span class="st PASS">PASS</span></td>
+  </tr>
+  
+  
+  <tr>
+    <td><code>acf_abs_1</code></td>
+    <td><span class="v CHANGED">CHANGED</span></td>
+    <td class="num">0.667</td>
+    <td class="num">0.0050</td>
+    <td class="num">0.2879</td>
+    <td class="num">0.1278</td>
+    <td><span class="st PASS">PASS</span></td>
+    <td><span class="st PASS">PASS</span></td>
+  </tr>
+  
+  
+  <tr>
+    <td><code>acf_abs_20</code></td>
+    <td><span class="v CHANGED">CHANGED</span></td>
+    <td class="num">0.867</td>
+    <td class="num">0.0040</td>
+    <td class="num">0.1181</td>
+    <td class="num">0.0267</td>
+    <td><span class="st PASS">PASS</span></td>
+    <td><span class="st FAIL">FAIL</span></td>
+  </tr>
+  
+  
+  <tr>
+    <td><code>leverage</code></td>
+    <td><span class="v NOT_SEPARATED">NOT_SEPARATED</span></td>
+    <td class="num">0.533</td>
+    <td class="num">0.0810</td>
+    <td class="num">-0.02041</td>
+    <td class="num">0.007556</td>
+    <td><span class="st FAIL">FAIL</span></td>
+    <td><span class="st FAIL">FAIL</span></td>
+  </tr>
+  
+  
+  <tr>
+    <td><code>variance_ratio_20</code></td>
+    <td><span class="v NOT_SEPARATED">NOT_SEPARATED</span></td>
+    <td class="num">0.267</td>
+    <td class="num">0.5432</td>
+    <td class="num">0.8738</td>
+    <td class="num">1.035</td>
+    <td><span class="st PASS">PASS</span></td>
+    <td><span class="st PASS">PASS</span></td>
+  </tr>
+  
+  
+  <tr>
+    <td><code>drift</code></td>
+    <td><span class="v NOT_SEPARATED">NOT_SEPARATED</span></td>
+    <td class="num">0.467</td>
+    <td class="num">0.1389</td>
+    <td class="num">-0.0165</td>
+    <td class="num">0.002331</td>
+    <td><span class="st PASS">PASS</span></td>
+    <td><span class="st PASS">PASS</span></td>
+  </tr>
+  
+</table>
+
+<h2>How to read this</h2>
+<ul>
+  <li><b>CHANGED</b> — the update moved this metric's window distribution
+      beyond the calibrated line. Whether that is acceptable is a claim
+      decision, not a statistic: check the vs-reference columns.</li>
+  <li><b>NOT_SEPARATED</b> — no detectable difference at this line with this
+      many windows. Not a claim of equality.</li>
+  <li><b>INSUFFICIENT</b> — fewer than 5 usable windows on a side.</li>
+</ul>
+
+<h2>Caveats</h2>
+<ul><li>the A-vs-B null is a permutation over windows, valid for exchangeable window sets; windows cut from one long simulated path share that path, so within-path long memory makes it slightly liberal (second-order at 1000-day windows for GARCH-class memory)</li><li>NOT_SEPARATED means no detectable difference at the alpha=0.01 line with this many windows — it is not a claim of equality</li><li>verdicts are per-metric; nothing aggregates them</li></ul>
+
+<h2>Provenance</h2>
+<table>
+  <tr><th>Compare</th><td><code>9eb8254c479b</code> ·
+      sieve 0.2.0 · seed 20260802</td></tr>
+  <tr><th>Suite hash</th><td><code>343042f8ceedf18a…</code></td></tr>
+  <tr><th>Inputs</th><td>A input sha256 <code>e0262952a91d…</code>
+      · B input sha256 <code>b99872a25a80…</code>
+      (both runs verified before comparison)</td></tr>
+</table>
+
+<footer>Sieve — every status resolves to test results, versions and caveats. No aggregate score exists.<br>
+Verify: <code>sha256sum -c compare.sha256</code> · both source runs:
+<code>sieve verify &lt;run-dir&gt;</code></footer>
+</div></body>
+</html>

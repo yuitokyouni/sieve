@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sieve evaluation — Example GARCH(1,1)-t simulator</title>
+<title>Sieve evaluation — Example market scenario generator</title>
 <style>
   :root { --ink:#14181f; --muted:#5a6577; --rule:#d5dce4; --panel:#f5f7fa;
           --pass:#1b7a44; --fail:#b8471f; --warn:#a06a00; --na:#5a6577; }
@@ -40,9 +40,9 @@
 </head>
 <body><div class="wrap">
 
-<h1>Example GARCH(1,1)-t simulator <span class="muted">v1.0</span></h1>
+<h1>Example market scenario generator <span class="muted">v2.3.0</span></h1>
 <div class="muted">Sieve evaluation · suite financial-daily@1.0.0
-· bundle <code>bafe49e91c2064fd…</code></div>
+· bundle <code>fcbf4d6d817cf80b…</code></div>
 
 <h2>1 · Claim under evaluation</h2>
 <div class="claim">
@@ -55,13 +55,13 @@ model is “true”, and no aggregate score exists.</p>
 
 <h2>2 · Scope and reference</h2>
 <table>
-  <tr><th>Input</th><td><code>examples/csv_returns</code>
-      · sha256 <code>888413387c0f81bc…</code></td></tr>
+  <tr><th>Input</th><td><code>examples/model_update/v1</code>
+      · sha256 <code>e0262952a91d7ad4…</code></td></tr>
   <tr><th>Reference</th><td>Six major equity indices (S&P 500, FTSE 100, DAX, Nikkei 225, Hang Seng, EURO STOXX 50), daily log returns, unit-sd scaled per index; the 124 derived windows span July 2001 – June 2026 (per-window dates ship in reference_stats.json). — frozen derived
       window statistics (124 windows,
       calendar-blocked); raw reference series are not shipped</td></tr>
   <tr><th>Windows</th><td>length 1000,
-      non-overlapping; 6 from input</td></tr>
+      non-overlapping; 15 from input</td></tr>
   <tr><th>Decision line</th><td>adjusted p &lt; 0.01
       (holm-adjusted; nominal line calibrated
       so its true size is 3–5% under the reference dependence)</td></tr>
@@ -79,7 +79,7 @@ model is “true”, and no aggregate score exists.</p>
   
   <tr>
     <td>tail behavior</td>
-    <td><span class="st FAIL">FAIL</span></td>
+    <td><span class="st PASS">PASS</span></td>
     <td class="muted">hill_left::vs-reference, hill_right::vs-reference</td>
   </tr>
   
@@ -127,8 +127,8 @@ model is “true”, and no aggregate score exists.</p>
   
   <tr>
     <td>reproducibility provenance</td>
-    <td><span class="st WARN">WARN</span></td>
-    <td class="muted">input manifest missing: git_commit, code_uri</td>
+    <td><span class="st PASS">PASS</span></td>
+    <td class="muted"></td>
   </tr>
   
 </table>
@@ -139,22 +139,10 @@ about the others; NOT_TESTED means exactly that.</p>
 
   
   <div class="finding">
-    <h3>Hill tail index (left) diverges from the empirical reference <span class="badge">HIGH</span>
-        <span class="badge">DIVERGES_HILL_LEFT</span></h3>
-    <div><b>Observation.</b> Across 6 non-overlapping simulated windows vs 124 reference windows, KS=0.766.</div>
-    <div><b>Interpretation.</b> The simulated distribution of 'Hill tail index (left)' is separated from the empirical reference (KS=0.77, adjusted p=0.003998 at the calibrated line). Note this metric also fails to separate the reference from block_bootstrap, garch_t; treat its pass/fail as one dimension of evidence, not a verdict.</div>
-    <div><b>Impact on claim.</b> Weakens support for claim 'descriptive-market-dynamics' on the dimension 'tail_behavior'. Other dimensions are unaffected by this finding.</div>
-    <div class="muted">Evidence: hill_left::vs-reference · observations.parquet · artifacts/baseline_context.json</div>
-    <div><b>Questions for the author.</b>
-      <ul><li>Did we extract the model output correctly (frequency, units, log vs simple returns)?</li><li>Is matching the empirical distribution of 'Hill tail index (left)' within the intended use of the model?</li><li>Is there a configuration of the model under which this dimension is expected to match, and should we evaluate that configuration instead?</li></ul>
-    </div>
-  </div>
-  
-  <div class="finding">
     <h3>Leverage correlation diverges from the empirical reference <span class="badge">HIGH</span>
         <span class="badge">DIVERGES_LEVERAGE</span></h3>
-    <div><b>Observation.</b> Across 6 non-overlapping simulated windows vs 124 reference windows, KS=0.793.</div>
-    <div><b>Interpretation.</b> The simulated distribution of 'Leverage correlation' is separated from the empirical reference (KS=0.79, adjusted p=0.003998 at the calibrated line). Note this metric also fails to separate the reference from block_bootstrap; treat its pass/fail as one dimension of evidence, not a verdict.</div>
+    <div><b>Observation.</b> Across 15 non-overlapping simulated windows vs 124 reference windows, KS=0.960.</div>
+    <div><b>Interpretation.</b> The simulated distribution of 'Leverage correlation' is separated from the empirical reference (KS=0.96, adjusted p=0.003998 at the calibrated line). Note this metric also fails to separate the reference from block_bootstrap; treat its pass/fail as one dimension of evidence, not a verdict.</div>
     <div><b>Impact on claim.</b> Weakens support for claim 'descriptive-market-dynamics' on the dimension 'leverage_asymmetry'. Other dimensions are unaffected by this finding.</div>
     <div class="muted">Evidence: leverage::vs-reference · observations.parquet · artifacts/baseline_context.json</div>
     <div><b>Questions for the author.</b>
@@ -173,9 +161,9 @@ about the others; NOT_TESTED means exactly that.</p>
   
   <tr>
     <td><code>excess_kurtosis</code></td>
-    <td class="num">0.656</td>
-    <td class="num">0.0165</td>
-    <td class="num">0.0990</td>
+    <td class="num">0.156</td>
+    <td class="num">0.8821</td>
+    <td class="num">1.0000</td>
     <td><span class="st PASS">PASS</span></td>
     <td><span class="muted">pre-specified</span></td>
     <td class="muted">block_bootstrap, garch_t</td>
@@ -184,10 +172,10 @@ about the others; NOT_TESTED means exactly that.</p>
   
   <tr>
     <td><code>hill_left</code></td>
-    <td class="num">0.766</td>
-    <td class="num">0.0005</td>
-    <td class="num">0.0040</td>
-    <td><span class="st FAIL">FAIL</span></td>
+    <td class="num">0.312</td>
+    <td class="num">0.1414</td>
+    <td class="num">0.7071</td>
+    <td><span class="st PASS">PASS</span></td>
     <td><span class="muted">pre-specified</span></td>
     <td class="muted">block_bootstrap, garch_t</td>
   </tr>
@@ -195,9 +183,9 @@ about the others; NOT_TESTED means exactly that.</p>
   
   <tr>
     <td><code>hill_right</code></td>
-    <td class="num">0.347</td>
-    <td class="num">0.4583</td>
-    <td class="num">0.9165</td>
+    <td class="num">0.181</td>
+    <td class="num">0.7611</td>
+    <td class="num">1.0000</td>
     <td><span class="st PASS">PASS</span></td>
     <td><span class="muted">pre-specified</span></td>
     <td class="muted">student_t, iid_bootstrap, block_bootstrap, garch_t</td>
@@ -206,9 +194,9 @@ about the others; NOT_TESTED means exactly that.</p>
   
   <tr>
     <td><code>acf_abs_1</code></td>
-    <td class="num">0.578</td>
-    <td class="num">0.0330</td>
-    <td class="num">0.1649</td>
+    <td class="num">0.417</td>
+    <td class="num">0.0195</td>
+    <td class="num">0.1169</td>
     <td><span class="st PASS">PASS</span></td>
     <td><span class="muted">pre-specified</span></td>
     <td class="muted">block_bootstrap, garch_norm, garch_t</td>
@@ -217,9 +205,9 @@ about the others; NOT_TESTED means exactly that.</p>
   
   <tr>
     <td><code>acf_abs_20</code></td>
-    <td class="num">0.532</td>
-    <td class="num">0.0710</td>
-    <td class="num">0.2839</td>
+    <td class="num">0.240</td>
+    <td class="num">0.4188</td>
+    <td class="num">1.0000</td>
     <td><span class="st PASS">PASS</span></td>
     <td><span class="muted">pre-specified</span></td>
     <td class="muted">garch_norm, garch_t</td>
@@ -228,7 +216,7 @@ about the others; NOT_TESTED means exactly that.</p>
   
   <tr>
     <td><code>leverage</code></td>
-    <td class="num">0.793</td>
+    <td class="num">0.960</td>
     <td class="num">0.0005</td>
     <td class="num">0.0040</td>
     <td><span class="st FAIL">FAIL</span></td>
@@ -239,9 +227,9 @@ about the others; NOT_TESTED means exactly that.</p>
   
   <tr>
     <td><code>variance_ratio_20</code></td>
-    <td class="num">0.285</td>
-    <td class="num">0.6277</td>
-    <td class="num">0.9165</td>
+    <td class="num">0.189</td>
+    <td class="num">0.6117</td>
+    <td class="num">1.0000</td>
     <td><span class="st PASS">PASS</span></td>
     <td><span class="badge">POST HOC</span>
         </td>
@@ -251,9 +239,9 @@ about the others; NOT_TESTED means exactly that.</p>
   
   <tr>
     <td><code>drift</code></td>
-    <td class="num">0.449</td>
-    <td class="num">0.1639</td>
-    <td class="num">0.4918</td>
+    <td class="num">0.603</td>
+    <td class="num">0.0015</td>
+    <td class="num">0.0105</td>
     <td><span class="st PASS">PASS</span></td>
     <td><span class="badge">POST HOC</span>
         </td>
@@ -271,14 +259,14 @@ about the others; NOT_TESTED means exactly that.</p>
 
 <h2>7 · Provenance</h2>
 <table>
-  <tr><th>Run</th><td><code>a49a0340dfca</code>
+  <tr><th>Run</th><td><code>7fae8368a25b</code>
       · sieve 0.2.0</td></tr>
-  <tr><th>Command</th><td><code>sieve test examples/csv_returns --suite financial-daily@1.0 --claim descriptive-market-dynamics</code></td></tr>
+  <tr><th>Command</th><td><code>sieve test examples/model_update/v1 --suite financial-daily@1.0 --claim descriptive-market-dynamics</code></td></tr>
   <tr><th>Master seed</th><td><code>20260802</code>
       (4 named children recorded)</td></tr>
   <tr><th>Suite hash</th><td><code>343042f8ceedf18a…</code></td></tr>
-  <tr><th>Model source</th><td>git commit not provided
-      · code URI not provided</td></tr>
+  <tr><th>Model source</th><td>see-generate-py-seed-11
+      · https://github.com/yuitokyouni/sieve/tree/main/examples/model_update</td></tr>
   <tr><th>Environment</th><td class="muted">python 3.11.15 · platform Linux-6.18.5-fc-v20-x86_64-with-glibc2.39 · numpy 2.4.6 · pydantic 2.13.4 · scipy 1.17.1 · polars 1.43.2 · </td></tr>
 </table>
 

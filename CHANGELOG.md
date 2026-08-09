@@ -1,6 +1,41 @@
 # Changelog
 
-## 0.1.1 — 2026-08-09
+## 0.2.0 — 2026-08-09
+
+`sieve compare`: the model-update regression gate. Two sealed runs of the
+same suite version are compared directly — per metric, a window-permutation
+test answers "did the update change this dimension's distribution?", with
+Holm adjustment, both sides' vs-reference statuses juxtaposed, and verdicts
+CHANGED / NOT_SEPARATED / INSUFFICIENT that never aggregate. Inputs are
+verified before anything is computed; tampered or cross-suite runs are
+refused. Output is a sealed `compare.json` (+ sha256 sidecar + HTML report).
+
+Shipped worked example (`examples/model_update`, frozen outputs in
+`docs/example-update/`): a bad refit (persistence collapsed, tail df
+clipped) is localized to `excess_kurtosis` / `hill_left` / `acf_abs_1` /
+`acf_abs_20` CHANGED with leverage/dependence/drift NOT_SEPARATED — and the
+`acf_abs_1` row demonstrates the gate's reason to exist: clustering halved
+while BOTH versions still PASS the reference test (limited power against ~6
+calendar blocks); only the direct comparison detects it. Recorded negative
+from the example's first draft: a tail-df clip alone, at 0.993 persistence,
+is nearly invisible to unconditional window statistics.
+
+Positioning per the scenario-generator reframe: measured objects are
+scenario-generating models (ABMs are one kind); real-world vs risk-neutral
+ESG validation are deliberately separate future suites. Scoping against the
+published NAIC stylized-facts / acceptance-criteria documents:
+`docs/roadmap-esg.md`.
+
+Pinned by this release (sieve_version is sealed, so all seals moved):
+
+- suite `financial-daily@1.0.0`, suite_hash unchanged
+  `343042f8ceedf18ad2f62eae54501e1e73b8ab59db836804f88fe42105911c9f`
+- frozen example run `docs/example-run/`, bundle_hash
+  `bafe49e91c2064fd046c8af1f0fc63478803823ca0b13ea6de10d2c32689ac5c`
+- frozen comparison `docs/example-update/compare/`, compare_hash
+  `2713b5cd3c3c965ab10a3959816dc9cd0f60ce46adc7fdeac275bbd73bd67b0e`
+
+## 0.1.1 — 2026-08-09 (not tagged; superseded by 0.2.0 the same day)
 
 Pre-outreach corrections, all four found by review before any external
 reproduction request. Content changes shift the hashes; v0.1.0's pins remain

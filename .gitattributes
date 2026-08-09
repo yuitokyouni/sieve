@@ -5,3 +5,4 @@ suites/** -text
 tests/golden/fixtures/** -text
 examples/csv_returns/returns.csv -text
 docs/example-run/** -text
+docs/example-update/** -text

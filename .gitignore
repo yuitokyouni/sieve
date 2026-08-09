@@ -7,3 +7,4 @@ dist/
 build/
 .sieve/
 .venv/
+examples/model_update/*/returns.csv
