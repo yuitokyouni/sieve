@@ -91,6 +91,10 @@ request was made:
   environment) and asserts its `bundle_hash` equals the committed example's
   — the "seal reproduces on this machine" step in
   `.github/workflows/test.yml`, visible per-run in the Actions tab.
+- **2026-08-09, reproduction #0** (self, pre-outreach): fresh network clone
+  + fresh venv + `constraints.txt`; statuses, both integrity layers and the
+  byte-exact seal reproduced. Verbatim log:
+  [`docs/reproductions/2026-08-09-repro0.md`](reproductions/2026-08-09-repro0.md).
 - Named third-party reproductions will be listed here as they happen.
 
 ## If something does not match
