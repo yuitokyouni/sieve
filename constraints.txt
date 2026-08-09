@@ -1,0 +1,61 @@
+# Pinned reproduction environment (see docs/reproduce.md).
+# Regenerate: uv pip compile pyproject.toml --universal -c <pins> -o constraints.txt
+# where <pins> holds the exact runtime versions a sealed example was produced with.
+annotated-doc==0.0.5
+    # via typer
+annotated-types==0.8.0
+    # via pydantic
+colorama==0.4.6 ; sys_platform == 'win32'
+    # via typer
+jinja2==3.1.6
+    # via
+    #   pinned reproduction environment
+    #   sieve-validation (pyproject.toml)
+markdown-it-py==4.2.0
+    # via rich
+markupsafe==3.0.3
+    # via jinja2
+mdurl==0.1.2
+    # via markdown-it-py
+numpy==2.4.6
+    # via
+    #   pinned reproduction environment
+    #   sieve-validation (pyproject.toml)
+    #   scipy
+polars==1.43.2
+    # via
+    #   pinned reproduction environment
+    #   sieve-validation (pyproject.toml)
+polars-runtime-32==1.43.2
+    # via polars
+pydantic==2.13.4
+    # via
+    #   pinned reproduction environment
+    #   sieve-validation (pyproject.toml)
+pydantic-core==2.46.4
+    # via pydantic
+pygments==2.20.0
+    # via rich
+pyyaml==6.0.1
+    # via
+    #   pinned reproduction environment
+    #   sieve-validation (pyproject.toml)
+rich==15.0.0
+    # via typer
+scipy==1.17.1
+    # via
+    #   pinned reproduction environment
+    #   sieve-validation (pyproject.toml)
+shellingham==1.5.4
+    # via typer
+typer==0.27.1
+    # via
+    #   pinned reproduction environment
+    #   sieve-validation (pyproject.toml)
+typing-extensions==4.16.0
+    # via
+    #   pydantic
+    #   pydantic-core
+    #   typing-inspection
+typing-inspection==0.4.2
+    # via pydantic

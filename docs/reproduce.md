@@ -6,28 +6,31 @@ statuses and the scientific seal.
 
 ## Environment
 
-Any OS. Python ≥ 3.11. Results are exact given the same package versions;
-the frozen example below was produced with:
+Any OS. Python ≥ 3.11. `constraints.txt` (committed) pins the exact package
+versions the frozen example was sealed with — install with it for the
+byte-exact seal check. Key pins:
 
 | package | version |
 |---|---|
-| python | 3.11.x |
 | numpy | 2.4.6 |
 | scipy | 1.17.1 |
 | pydantic | 2.13.4 |
 | polars | 1.43.2 |
 
-Different major versions will still reproduce the statuses; the byte-exact
-`bundle_hash` is only guaranteed under matching numerical stack versions
-(a different floating-point stack is a different computation, and the seal is
-supposed to notice).
+Without the constraints (newer packages), the statuses should still
+reproduce; the byte-exact `bundle_hash` is guaranteed only under the pinned
+numerical stack. Versions are recorded in the bundle's environment
+fingerprint but deliberately not hashed into the seal — a dependency change
+is detected exactly when it changes a measured value
+(`docs/architecture.md`).
 
 ## Steps
 
 ```
 git clone https://github.com/yuitokyouni/sieve
 cd sieve
-pip install -e .            # or: uv pip install -e .
+python -m venv .venv && . .venv/bin/activate
+pip install -e . -c constraints.txt      # or: uv pip install -e . -c constraints.txt
 
 # 1. integrity of the shipped example, without running anything
 sieve verify docs/example-run
@@ -42,8 +45,7 @@ sieve verify /tmp/sieve-runs/<run-id>
 
 ## Expected results
 
-The validation profile printed by step 2 (and in
-`report/index.html`):
+The validation profile printed by step 2 (and in `report/index.html`):
 
 | dimension | status |
 |---|---|
@@ -67,17 +69,29 @@ The scientific seal in `evidence_bundle.json` (`bundle_hash`) and printed by
 `sieve test`:
 
 ```
-31bda432c319adfcc40a25e137f50dff15446513c886dfc85cbcf61138dbedf5
+bad5cb0455f78d2603e1a6767209a11eaacc86e5496d56c9cce4aa9cb87a6490
 ```
 
 The suite hash recorded in the same bundle (`suite.suite_hash`):
 
 ```
-7808f705d610cfde4621d4ea5b46dced75aaa3816558d64b6e9051d24891df61
+343042f8ceedf18ad2f62eae54501e1e73b8ab59db836804f88fe42105911c9f
 ```
 
 Your `run_id`, timestamps and machine fingerprint will differ — they are
 outside the seal by design (`docs/architecture.md`).
+
+## Reproductions on record
+
+Machine-independent reproductions of the seal above, before any external
+request was made:
+
+- **Continuous:** every CI push reruns the golden path on a fresh
+  `ubuntu-latest` runner (a machine that never touched the sealing
+  environment) and asserts its `bundle_hash` equals the committed example's
+  — the "seal reproduces on this machine" step in
+  `.github/workflows/test.yml`, visible per-run in the Actions tab.
+- Named third-party reproductions will be listed here as they happen.
 
 ## If something does not match
 

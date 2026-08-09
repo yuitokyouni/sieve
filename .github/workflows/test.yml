@@ -15,8 +15,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
       # setup-uv creates and activates a venv for the requested interpreter;
       # install there (--system would target the runner's externally-managed
-      # Debian python and fail with PEP 668).
-      - run: uv pip install -e ".[dev]"
+      # Debian python and fail with PEP 668). constraints.txt pins the
+      # reproduction environment the committed example was sealed with.
+      - run: uv pip install -e ".[dev]" -c constraints.txt
       - run: python -m pytest tests -q
       - name: golden path smoke
         run: |
@@ -37,3 +38,27 @@ jobs:
           echo "committed example: $exp"
           echo "this runner:       $got"
           test "$got" = "$exp"
+
+  parity:
+    # The README claims bit-for-bit parity with the sieve-bench research
+    # code. This job enforces it: the research repo is checked out at a
+    # pinned commit and SIEVE_RESEARCH_ROOT makes a missing/broken checkout
+    # a test FAILURE, not a skip. (Layer 3 — recomputing reference windows
+    # from raw index data — still skips here: the data is not
+    # redistributable and CI must stay offline with respect to it.)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: yuitokyouni/sieve-bench
+          ref: 14baa865aa6dc5cd647ea51996b8fc235cfdc395
+          path: research
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+      - run: uv pip install -e ".[dev]" -c constraints.txt
+      - name: bit-for-bit parity against pinned research code
+        env:
+          SIEVE_RESEARCH_ROOT: ${{ github.workspace }}/research
+        run: python -m pytest tests/golden -q -rs

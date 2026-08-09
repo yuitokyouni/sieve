@@ -1,6 +1,6 @@
 {
  "command": "sieve test examples/csv_returns --suite financial-daily@1.0 --claim descriptive-market-dynamics",
- "created_at": "2026-08-09T01:17:21.072948Z",
+ "created_at": "2026-08-09T02:20:31.224288Z",
  "environment": {
   "numpy": "2.4.6",
   "platform": "Linux-6.18.5-fc-v20-x86_64-with-glibc2.39",
@@ -12,7 +12,7 @@
  "input_hash": "888413387c0f81bcafcfdb3d75fe2d6945727bc0ffd4232650a8021a94381b81",
  "input_path": "examples/csv_returns",
  "master_seed": 20260802,
- "run_id": "190cc8da045f",
+ "run_id": "6488d40d92ad",
  "schema_version": "0.1.0",
  "seed_tree": [
   {
@@ -44,5 +44,5 @@
    ]
   }
  ],
- "sieve_version": "0.1.0"
+ "sieve_version": "0.1.1"
 }

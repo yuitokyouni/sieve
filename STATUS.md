@@ -71,7 +71,19 @@ citable or inspectable by a third party without installing anything.
 - [x] Tagged `v0.1.0` (source commit, suite hash, example bundle hash pinned
       in the tag annotation and CHANGELOG)
 
-### Acceptance criteria → tests (all passing, 78 total)
+## v0.1.1 — pre-outreach corrections: DONE
+
+Four review findings fixed before any external reproduction request; see
+CHANGELOG 0.1.1. Notables: the parity claim is now CI-enforced against a
+pinned sieve-bench checkout (`parity` job; skip → failure under
+`SIEVE_RESEARCH_ROOT`), `constraints.txt` pins the reproduction
+environment, the seal/package-version relationship is documented as
+implemented, and the reference-period label matches the shipped windows.
+
+### Acceptance criteria → tests
+
+78 total: 69 run standalone, 8 parity tests run in the CI `parity` job
+against a pinned sieve-bench checkout, 1 requires locally fetched raw data.
 
 | Criterion | Test |
 |---|---|

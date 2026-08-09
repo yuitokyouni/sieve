@@ -2,16 +2,22 @@
 
 Three layers, strongest available first:
 
-1. The suite ships byte-identical copies of the frozen fixtures.
+1. The suite ships byte-identical copies of the frozen fixtures. Runs
+   everywhere, always.
 2. Product metric functions equal the research functions bit-for-bit on
-   arbitrary synthetic input (runs whenever the research repo is present —
-   it is the parent directory in the current layout).
+   arbitrary synthetic input. Requires the sieve-bench research repo. CI
+   checks it out at a pinned commit and sets ``SIEVE_RESEARCH_ROOT`` — with
+   that variable set, a missing or unimportable research repo is a FAILURE,
+   not a skip. Without it (a standalone clone), these tests skip and say so;
+   the CI parity job is where the claim is enforced.
 3. Recomputing the 124 reference windows with product metrics reproduces the
-   frozen values exactly (runs only when the raw index data has been fetched
-   locally; the data itself is never shipped).
+   frozen values exactly. Needs the raw index data fetched locally
+   (sieve-bench ``fetch.py``); the data is not redistributable, so this
+   layer never runs in CI and skips wherever the data is absent.
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -19,18 +25,42 @@ import numpy as np
 import pytest
 
 PRODUCT = Path(__file__).resolve().parents[2]
-RESEARCH = PRODUCT.parent
+# CI pins the research checkout via SIEVE_RESEARCH_ROOT; the fallback covers
+# the historical monorepo layout (product/ inside sieve-bench).
+RESEARCH = Path(os.environ.get("SIEVE_RESEARCH_ROOT", PRODUCT.parent))
+RESEARCH_REQUIRED = "SIEVE_RESEARCH_ROOT" in os.environ
 FIX = Path(__file__).resolve().parent / "fixtures"
 SUITE = PRODUCT / "suites" / "financial-daily" / "1.0.0"
 
 M1_METRICS = ["excess_kurtosis", "hill_left", "hill_right", "acf_abs_1",
               "acf_abs_20", "leverage", "variance_ratio_20", "drift"]
 
+SKIP_NO_RESEARCH = (
+    "research repo not present; the parity claim is enforced by the CI "
+    "parity job against a pinned sieve-bench checkout "
+    "(SIEVE_RESEARCH_ROOT), see .github/workflows/test.yml")
+SKIP_NO_DATA = (
+    "raw index data not fetched locally (not redistributable; run "
+    "sieve-bench fetch.py to enable this layer — it never runs in CI)")
+
 
 def product_fn(mid):
     from sieve.metrics import registry
     fn, _, _ = registry.resolve(mid)
     return fn
+
+
+def _research_available() -> bool:
+    return (RESEARCH / "facts.py").exists()
+
+
+def _require_research():
+    """FAIL (not skip) when the pinned research checkout is broken."""
+    assert _research_available(), (
+        f"SIEVE_RESEARCH_ROOT={RESEARCH} is set but facts.py is not there — "
+        "the parity gate must not silently skip")
+    if str(RESEARCH) not in sys.path:
+        sys.path.insert(0, str(RESEARCH))
 
 
 # ---- layer 1: the suite ships exactly the frozen fixtures ------------------
@@ -55,11 +85,12 @@ def test_fixture_shape():
 
 # ---- layer 2: product == research on synthetic input, bit for bit ----------
 
-@pytest.mark.skipif(not (RESEARCH / "facts.py").exists(),
-                    reason="research repo absent")
+@pytest.mark.skipif(not RESEARCH_REQUIRED and not (Path(__file__).resolve()
+                    .parents[2].parent / "facts.py").exists(),
+                    reason=SKIP_NO_RESEARCH)
 @pytest.mark.parametrize("mid", M1_METRICS)
 def test_product_metric_equals_research_bit_for_bit(mid):
-    sys.path.insert(0, str(RESEARCH))
+    _require_research()
     import facts
     rng = np.random.default_rng(2026)
     samples = [rng.standard_normal(1000),
@@ -79,9 +110,9 @@ def test_product_metric_equals_research_bit_for_bit(mid):
 
 @pytest.mark.skipif(not (RESEARCH / "data").is_dir()
                     or not any((RESEARCH / "data").glob("*.json")),
-                    reason="raw index data not fetched locally")
+                    reason=SKIP_NO_DATA)
 def test_reference_values_recompute_exactly():
-    sys.path.insert(0, str(RESEARCH))
+    _require_research()
     from windows import load_series, real_windows
     ref = json.loads((FIX / "reference_stats.json").read_text())
     wins = real_windows(load_series())

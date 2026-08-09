@@ -10,11 +10,20 @@ Every run produces two hashes with deliberately different scopes:
 
 - **`bundle_hash` — scientific identity.** SHA-256 of the canonical bundle
   JSON with volatile fields nulled shape-preserving. It covers the data
-  content hash, suite hash, claim, master seed and seed tree, package
-  versions, all results, the profile and the findings. It excludes run IDs,
-  timestamps, the artifact index, filesystem paths and the machine
-  fingerprint. Contract: same input bytes + same suite + same seed + same
-  package versions ⇒ same seal, on any machine. This is the hash to quote.
+  content hash, suite hash, claim, master seed and seed tree, the sieve
+  version, all results, the profile and the findings. It excludes run IDs,
+  timestamps, the artifact index, filesystem paths and the entire
+  environment fingerprint — **dependency versions are recorded in
+  `run_manifest.environment` (file-integrity layer) but are not hashed into
+  the seal**. A dependency upgrade is therefore detected exactly when it
+  changes a measured value, and invisible when it does not: two numpy
+  versions that compute identical results produce an identical seal, which
+  is the intended meaning of "what was measured". The flip side is that
+  matching package versions are a *precondition* for byte-exact
+  reproduction, not something the seal enforces — which is why
+  `constraints.txt` pins the reproduction environment and
+  `docs/reproduce.md` installs with it. Contract: same input bytes + same
+  suite + same seed + same package versions ⇒ same seal, on any machine.
 - **`bundle.sha256` — distribution integrity.** A sha256sum-compatible
   sidecar over the written `evidence_bundle.json` bytes, which include the
   artifact index (per-file hashes of the report, results, observations,

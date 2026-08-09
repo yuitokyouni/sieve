@@ -9,9 +9,10 @@ runner = CliRunner()
 
 
 def test_version():
+    import sieve
     res = runner.invoke(app, ["--version"])
     assert res.exit_code == 0
-    assert "sieve 0.1.0" in res.output
+    assert f"sieve {sieve.__version__}" in res.output
 
 
 def test_doctor_ok():

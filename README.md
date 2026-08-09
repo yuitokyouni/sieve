@@ -156,8 +156,14 @@ appear in the report rather than being silently filled.
 
 ## Status
 
-v0.1.0: the offline golden path above is complete and tested (78 tests,
-including cross-path determinism, both tamper layers and bit-for-bit parity
-with the research repository). `STATUS.md` maps every acceptance criterion to
-its test; `docs/architecture.md` records design decisions including the two
+v0.1.1: the offline golden path above is complete and tested. 69 of the 78
+tests run anywhere from this repo alone (cross-path determinism, both tamper
+layers, no-score enforcement among them); the 8 bit-for-bit parity tests
+against the research code run in CI against a pinned sieve-bench checkout —
+where a missing checkout is a failure, not a skip — and the 1 test that
+recomputes the 124 reference windows runs only where the raw index data has
+been fetched locally, because that data is not redistributable. CI also
+reruns the golden path on every push and asserts the fresh runner's seal
+equals the committed example's. `STATUS.md` maps every acceptance criterion
+to its test; `docs/architecture.md` records design decisions including the
 seal-scope corrections found by our own audit tests.

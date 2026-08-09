@@ -11,8 +11,9 @@ claim_types:
 reference:
   dataset: >-
     Six major equity indices (S&P 500, FTSE 100, DAX, Nikkei 225, Hang Seng,
-    EURO STOXX 50), daily closes 2001–2025, log returns, unit-sd scaled per
-    index.
+    EURO STOXX 50), daily log returns, unit-sd scaled per index; the 124
+    derived windows span July 2001 – June 2026 (per-window dates ship in
+    reference_stats.json).
   window_length: 1000
   stride: 250
   n_windows: 124
