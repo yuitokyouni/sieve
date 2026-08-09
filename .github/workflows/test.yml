@@ -1,6 +1,3 @@
-# CI for the extracted product repository (product/ as repo root).
-# While the product lives inside sieve-bench, the active copy of this job is
-# the repo-root workflow .github/workflows/product.yml.
 name: test
 on:
   push:
@@ -16,7 +13,10 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: uv pip install --system -e ".[dev]"
+      # setup-uv creates and activates a venv for the requested interpreter;
+      # install there (--system would target the runner's externally-managed
+      # Debian python and fail with PEP 668).
+      - run: uv pip install -e ".[dev]"
       - run: python -m pytest tests -q
       - name: golden path smoke
         run: |
