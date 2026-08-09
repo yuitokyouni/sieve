@@ -31,11 +31,11 @@ baseline (β = 0.875, ν = 6.47):
 
 | effect | excess_kurtosis | acf_abs_1 | acf_abs_20 | hill_left | hill_right |
 |---|---|---|---|---|---|
-| β → 0.86 | 0.00 | 0.00 | 0.03 | 0.00 | 0.00 |
-| β → 0.84 | 0.01 | 0.07 | 0.21 | 0.01 | 0.01 |
-| β → 0.82 | 0.03 | 0.14 | 0.66 | 0.03 | 0.02 |
-| β → 0.80 and ν → 30 (worked example) | **1.00** | 0.60 | **0.98** | 0.78 | 0.84 |
-| ν → 30 only | 0.10 | 0.00 | 0.00 | 0.04 | 0.03 |
+| β → 0.86 | 0.00 | 0.01 | 0.03 | 0.00 | 0.00 |
+| β → 0.84 | 0.05 | 0.08 | 0.33 | 0.01 | 0.01 |
+| β → 0.82 | 0.05 | 0.19 | 0.64 | 0.00 | 0.05 |
+| β → 0.80 and ν → 30 (worked example) | **1.00** | 0.57 | **0.95** | 0.77 | 0.75 |
+| ν → 30 only | 0.10 | 0.00 | 0.00 | 0.04 | 0.06 |
 
 (leverage / variance_ratio_20 / drift stayed at or near zero for every
 effect, as they should — these perturbations do not touch those
@@ -45,7 +45,8 @@ mechanisms.)
 
 - The worked example's regression class (persistence collapse + tail-df
   clip) is detected essentially always, led by `excess_kurtosis` and
-  `acf_abs_20`.
+  `acf_abs_20`. All experiment seeds are fixed, so
+  `tools/calibrate_compare.py` reproduces this JSON exactly.
 - **Measured power boundary:** persistence drifts of |Δβ| ≤ 0.04 are
   mostly invisible at 15v15 windows, and a tail-df clip alone at high
   persistence is nearly invisible to unconditional window statistics

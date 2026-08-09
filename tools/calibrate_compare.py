@@ -29,10 +29,10 @@ HERE = Path(__file__).resolve().parent
 PRODUCT = HERE.parent
 sys.path.insert(0, str(PRODUCT / "src"))
 
-from sieve.baselines.garch import generate_t              # noqa: E402
-from sieve.inference.multiplicity import holm             # noqa: E402
-from sieve.inference.permutation import perm_ks_test      # noqa: E402
-from sieve.metrics import registry                       # noqa: E402
+from sieve.baselines.garch import generate_t  # noqa: E402
+from sieve.inference.multiplicity import holm  # noqa: E402
+from sieve.inference.permutation import perm_ks_test  # noqa: E402
+from sieve.metrics import registry  # noqa: E402
 
 METRICS = ["excess_kurtosis", "hill_left", "hill_right", "acf_abs_1",
            "acf_abs_20", "leverage", "variance_ratio_20", "drift"]
@@ -98,9 +98,10 @@ def main():
         "beta_0.80_nu30": [o, a, 0.80, 30.0],   # the worked example
         "nu30_only": [o, a, b, 30.0],           # known near-invisible
     }
-    for name, pb in effects.items():
+    for i, (name, pb) in enumerate(effects.items()):
+        # deterministic seed per effect (hash() is process-randomized)
         out["power"][name] = experiment(f"power {name}", BASE, pb, 15, 100,
-                                        hash(name) % 2**31)
+                                        1000 + i)
 
     path = PRODUCT / "docs" / "compare-calibration.json"
     path.write_text(json.dumps(out, indent=1) + "\n")

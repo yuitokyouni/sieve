@@ -69,7 +69,7 @@ The scientific seal in `evidence_bundle.json` (`bundle_hash`) and printed by
 `sieve test`:
 
 ```
-bafe49e91c2064fd046c8af1f0fc63478803823ca0b13ea6de10d2c32689ac5c
+43b88e5f166bba0fe5ede860afdf9b3132c44e4a3cc198e6b5f551d9b9549cd4
 ```
 
 The suite hash recorded in the same bundle (`suite.suite_hash`):

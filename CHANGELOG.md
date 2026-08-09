@@ -21,8 +21,10 @@ This release addresses all three findings.
   pairs), 0.000 at 6v6 (200)** — conservative, replacing the unmeasured
   "slightly liberal" caveat. Power is mapped per effect size: the worked
   example's regression is detected ~always (kurtosis 1.00, acf_abs_20
-  0.98); |Δβ| ≤ 0.04 persistence drifts and a lone tail-df clip are mostly
-  invisible, and the reports say so (`docs/compare-calibration.md`).
+  0.95); |Δβ| ≤ 0.04 persistence drifts and a lone tail-df clip are mostly
+  invisible, and the reports say so (`docs/compare-calibration.md`). All
+  calibration seeds are fixed, so the script reproduces the frozen JSON
+  bit for bit.
 - **Detection → approval.** Each metric now carries a *transition* read
   against the reference gate (REGRESSION / IMPROVEMENT /
   CHANGED_WITHIN_GATE / STABLE / INDETERMINATE) plus median shifts (Δ%),

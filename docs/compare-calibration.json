@@ -49,12 +49,12 @@
   "beta_0.86": {
    "n_pairs": 100,
    "n_windows_per_side": 15,
-   "familywise_rate": 0.03,
+   "familywise_rate": 0.04,
    "per_metric_rate": {
     "excess_kurtosis": 0.0,
     "hill_left": 0.0,
     "hill_right": 0.0,
-    "acf_abs_1": 0.0,
+    "acf_abs_1": 0.01,
     "acf_abs_20": 0.03,
     "leverage": 0.0,
     "variance_ratio_20": 0.0,
@@ -64,13 +64,13 @@
   "beta_0.84": {
    "n_pairs": 100,
    "n_windows_per_side": 15,
-   "familywise_rate": 0.23,
+   "familywise_rate": 0.36,
    "per_metric_rate": {
-    "excess_kurtosis": 0.01,
+    "excess_kurtosis": 0.05,
     "hill_left": 0.01,
     "hill_right": 0.01,
-    "acf_abs_1": 0.07,
-    "acf_abs_20": 0.21,
+    "acf_abs_1": 0.08,
+    "acf_abs_20": 0.33,
     "leverage": 0.0,
     "variance_ratio_20": 0.0,
     "drift": 0.0
@@ -81,11 +81,11 @@
    "n_windows_per_side": 15,
    "familywise_rate": 0.67,
    "per_metric_rate": {
-    "excess_kurtosis": 0.03,
-    "hill_left": 0.03,
-    "hill_right": 0.02,
-    "acf_abs_1": 0.14,
-    "acf_abs_20": 0.66,
+    "excess_kurtosis": 0.05,
+    "hill_left": 0.0,
+    "hill_right": 0.05,
+    "acf_abs_1": 0.19,
+    "acf_abs_20": 0.64,
     "leverage": 0.0,
     "variance_ratio_20": 0.0,
     "drift": 0.0
@@ -97,10 +97,10 @@
    "familywise_rate": 1.0,
    "per_metric_rate": {
     "excess_kurtosis": 1.0,
-    "hill_left": 0.78,
-    "hill_right": 0.84,
-    "acf_abs_1": 0.6,
-    "acf_abs_20": 0.98,
+    "hill_left": 0.77,
+    "hill_right": 0.75,
+    "acf_abs_1": 0.57,
+    "acf_abs_20": 0.95,
     "leverage": 0.0,
     "variance_ratio_20": 0.0,
     "drift": 0.0
@@ -113,10 +113,10 @@
    "per_metric_rate": {
     "excess_kurtosis": 0.1,
     "hill_left": 0.04,
-    "hill_right": 0.03,
+    "hill_right": 0.06,
     "acf_abs_1": 0.0,
     "acf_abs_20": 0.0,
-    "leverage": 0.0,
+    "leverage": 0.01,
     "variance_ratio_20": 0.0,
     "drift": 0.0
    }

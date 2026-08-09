@@ -6,28 +6,32 @@
 <title>Sieve model-update comparison — Example market scenario generator → Example market scenario generator</title>
 <style>
   :root { --ink:#14181f; --muted:#5a6577; --rule:#d5dce4; --panel:#f5f7fa;
-          --same:#1b7a44; --chg:#b8471f; --na:#5a6577; }
+          --same:#1b7a44; --chg:#b8471f; --warn:#a06a00; --na:#5a6577; }
   * { box-sizing: border-box; }
   body { margin:0; font: 15px/1.7 system-ui, sans-serif; color:var(--ink); }
-  .wrap { max-width: 62rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .wrap { max-width: 66rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
   h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
   h2 { font-size: 1.1rem; border-bottom: 2px solid var(--ink);
        padding-bottom:.3rem; margin: 2.2rem 0 .8rem; }
   .muted { color: var(--muted); }
-  table { border-collapse: collapse; width: 100%; font-size: .92em; }
-  th, td { text-align: left; padding: .45rem .6rem;
+  table { border-collapse: collapse; width: 100%; font-size: .9em; }
+  th, td { text-align: left; padding: .45rem .55rem;
            border-bottom: 1px solid var(--rule); vertical-align: top; }
   th { color: var(--muted); font-weight: 600; }
   .num { font-variant-numeric: tabular-nums; text-align: right; }
   .v { font-weight: 700; font-size: .85em; letter-spacing: .03em; }
-  .v.CHANGED { color: var(--chg); }
-  .v.NOT_SEPARATED { color: var(--same); }
-  .v.INSUFFICIENT { color: var(--na); }
+  .v.CHANGED, .v.REGRESSION, .v.REVIEW_REQUIRED { color: var(--chg); }
+  .v.NOT_SEPARATED, .v.STABLE, .v.IMPROVEMENT, .v.NO_CHANGE_DETECTED { color: var(--same); }
+  .v.CHANGED_WITHIN_GATE { color: var(--warn); }
+  .v.INSUFFICIENT, .v.INDETERMINATE { color: var(--na); }
   .st { font-size:.8em; font-weight:600; }
   .st.PASS { color: var(--same); } .st.FAIL { color: var(--chg); }
-  .st.WARN { color:#a06a00; } .st.INSUFFICIENT, .st.NOT_TESTED { color: var(--na); }
+  .st.WARN { color: var(--warn); }
+  .st.INSUFFICIENT, .st.NOT_TESTED { color: var(--na); }
   .box { background: var(--panel); border-left: 4px solid var(--ink);
          padding: .8rem 1rem; margin: 1rem 0; }
+  .decision { border-left-color: var(--chg); }
+  .decision.ok { border-left-color: var(--same); }
   ul { margin:.3rem 0 .6rem 1.2rem; padding:0; }
   footer { margin-top:3rem; border-top:1px solid var(--rule);
            padding-top:1rem; font-size:.85em; color:var(--muted); }
@@ -39,147 +43,195 @@
 
 <h1>Model-update comparison</h1>
 <div class="muted">Sieve · suite financial-daily@1.0.0
-· claim descriptive-market-dynamics · compare <code>2713b5cd3c3c965a…</code></div>
+· claim descriptive-market-dynamics · compare <code>91ecd504e46a155f…</code></div>
 
 <div class="box">
   <b>A (baseline):</b> Example market scenario generator
   <span class="muted">v2.3.0 ·
   15 windows · bundle
-  <code>fcbf4d6d817c…</code></span><br>
+  <code>efc8f0471aca…</code></span>
+  · <a href="../run-v1/report/index.html">full report &amp; findings</a><br>
   <b>B (candidate):</b> Example market scenario generator
   <span class="muted">v2.4.0 ·
   15 windows · bundle
-  <code>25f54c605f85…</code></span>
+  <code>454c49e1a4f5…</code></span>
+  · <a href="../run-v2/report/index.html">full report &amp; findings</a>
 </div>
 
-<p>Per metric, this report answers one question: <em>did the update change
-this dimension's window distribution?</em> (permutation test over windows,
-holm-adjusted, line α =
-0.01). Each row also shows what both versions do against
-the empirical reference, so a detected change can be read as toward or away
-from realism. Verdicts do not aggregate.</p>
 
-<h2>Per-metric verdicts</h2>
+<div class="box decision ">
+  <span class="v REVIEW_REQUIRED">REVIEW_REQUIRED</span>
+  <span class="muted">— policy required-dims-no-unexplained-change@1
+  over required dimensions: marginal_distribution, tail_behavior, volatility_dynamics, leverage_asymmetry</span>
+  
+  <ul><li>excess_kurtosis: REGRESSION</li><li>hill_left: REGRESSION</li><li>acf_abs_1: CHANGED on required dimension volatility_dynamics</li><li>acf_abs_20: REGRESSION</li></ul>
+  
+  <div class="muted" style="font-size:.85em">REVIEW_REQUIRED if any metric on one of the claim's required dimensions has verdict CHANGED or transition REGRESSION or INDETERMINATE, or if any metric on any dimension has transition REGRESSION. IMPROVEMENT alone never triggers. Otherwise NO_CHANGE_DETECTED. This is a routing rule for human review, applied per metric; nothing is weighted, summed or averaged.</div>
+</div>
+
+
+<h2>1 · What was declared to change</h2>
+
 <table>
-  <tr><th>Metric</th><th>Verdict (A→B)</th><th class="num">KS(A,B)</th>
-      <th class="num">p (adj)</th><th class="num">median A</th>
-      <th class="num">median B</th><th>A vs ref</th><th>B vs ref</th></tr>
+  <tr><th>Manifest parameter</th><th class="num">A</th><th class="num">B</th></tr>
+  
+  <tr><td><code>beta</code></td>
+      <td class="num">0.8751463025418191</td>
+      <td class="num">0.8</td></tr>
+  
+  <tr><td><code>seed</code></td>
+      <td class="num">11</td>
+      <td class="num">12</td></tr>
+  
+  <tr><td><code>t_df</code></td>
+      <td class="num">6.466697865253001</td>
+      <td class="num">30.0</td></tr>
+  
+</table>
+<p class="muted">As declared in the two model manifests — what the authors
+say changed. The rows below measure what actually changed.</p>
+
+
+<h2>2 · What measurably changed</h2>
+<table>
+  <tr><th>Metric</th><th>Verdict</th><th>Transition</th>
+      <th class="num">KS(A,B)</th><th class="num">p (adj)</th>
+      <th class="num">median A → B</th><th class="num">Δ%</th>
+      <th>A vs ref</th><th>B vs ref</th></tr>
   
   
   <tr>
-    <td><code>excess_kurtosis</code></td>
+    <td><code>excess_kurtosis</code><br><span class="muted" style="font-size:.8em">marginal distribution</span></td>
     <td><span class="v CHANGED">CHANGED</span></td>
+    <td><span class="v REGRESSION">REGRESSION</span></td>
     <td class="num">0.867</td>
     <td class="num">0.0040</td>
-    <td class="num">4.958</td>
-    <td class="num">0.4175</td>
+    <td class="num">4.96 →
+                    0.418</td>
+    <td class="num">-92%</td>
     <td><span class="st PASS">PASS</span></td>
     <td><span class="st FAIL">FAIL</span></td>
   </tr>
   
   
   <tr>
-    <td><code>hill_left</code></td>
+    <td><code>hill_left</code><br><span class="muted" style="font-size:.8em">tail behavior</span></td>
     <td><span class="v CHANGED">CHANGED</span></td>
+    <td><span class="v REGRESSION">REGRESSION</span></td>
     <td class="num">0.667</td>
     <td class="num">0.0040</td>
-    <td class="num">3.004</td>
-    <td class="num">5.032</td>
+    <td class="num">3 →
+                    5.03</td>
+    <td class="num">+67%</td>
     <td><span class="st PASS">PASS</span></td>
     <td><span class="st FAIL">FAIL</span></td>
   </tr>
   
   
   <tr>
-    <td><code>hill_right</code></td>
+    <td><code>hill_right</code><br><span class="muted" style="font-size:.8em">tail behavior</span></td>
     <td><span class="v NOT_SEPARATED">NOT_SEPARATED</span></td>
+    <td><span class="v STABLE">STABLE</span></td>
     <td class="num">0.600</td>
     <td class="num">0.0220</td>
-    <td class="num">3.136</td>
-    <td class="num">5.056</td>
+    <td class="num">3.14 →
+                    5.06</td>
+    <td class="num">+61%</td>
     <td><span class="st PASS">PASS</span></td>
     <td><span class="st PASS">PASS</span></td>
   </tr>
   
   
   <tr>
-    <td><code>acf_abs_1</code></td>
+    <td><code>acf_abs_1</code><br><span class="muted" style="font-size:.8em">volatility dynamics</span></td>
     <td><span class="v CHANGED">CHANGED</span></td>
+    <td><span class="v CHANGED_WITHIN_GATE">CHANGED_WITHIN_GATE</span></td>
     <td class="num">0.667</td>
     <td class="num">0.0050</td>
-    <td class="num">0.2879</td>
-    <td class="num">0.1278</td>
+    <td class="num">0.288 →
+                    0.128</td>
+    <td class="num">-56%</td>
     <td><span class="st PASS">PASS</span></td>
     <td><span class="st PASS">PASS</span></td>
   </tr>
   
   
   <tr>
-    <td><code>acf_abs_20</code></td>
+    <td><code>acf_abs_20</code><br><span class="muted" style="font-size:.8em">volatility dynamics</span></td>
     <td><span class="v CHANGED">CHANGED</span></td>
+    <td><span class="v REGRESSION">REGRESSION</span></td>
     <td class="num">0.867</td>
     <td class="num">0.0040</td>
-    <td class="num">0.1181</td>
-    <td class="num">0.0267</td>
+    <td class="num">0.118 →
+                    0.0267</td>
+    <td class="num">-77%</td>
     <td><span class="st PASS">PASS</span></td>
     <td><span class="st FAIL">FAIL</span></td>
   </tr>
   
   
   <tr>
-    <td><code>leverage</code></td>
+    <td><code>leverage</code><br><span class="muted" style="font-size:.8em">leverage asymmetry</span></td>
     <td><span class="v NOT_SEPARATED">NOT_SEPARATED</span></td>
+    <td><span class="v STABLE">STABLE</span></td>
     <td class="num">0.533</td>
     <td class="num">0.0810</td>
-    <td class="num">-0.02041</td>
-    <td class="num">0.007556</td>
+    <td class="num">-0.0204 →
+                    0.00756</td>
+    <td class="num">+137%</td>
     <td><span class="st FAIL">FAIL</span></td>
     <td><span class="st FAIL">FAIL</span></td>
   </tr>
   
   
   <tr>
-    <td><code>variance_ratio_20</code></td>
+    <td><code>variance_ratio_20</code><br><span class="muted" style="font-size:.8em">return dependence</span></td>
     <td><span class="v NOT_SEPARATED">NOT_SEPARATED</span></td>
+    <td><span class="v STABLE">STABLE</span></td>
     <td class="num">0.267</td>
     <td class="num">0.5432</td>
-    <td class="num">0.8738</td>
-    <td class="num">1.035</td>
+    <td class="num">0.874 →
+                    1.03</td>
+    <td class="num">+18%</td>
     <td><span class="st PASS">PASS</span></td>
     <td><span class="st PASS">PASS</span></td>
   </tr>
   
   
   <tr>
-    <td><code>drift</code></td>
+    <td><code>drift</code><br><span class="muted" style="font-size:.8em">drift nonstationarity</span></td>
     <td><span class="v NOT_SEPARATED">NOT_SEPARATED</span></td>
+    <td><span class="v STABLE">STABLE</span></td>
     <td class="num">0.467</td>
     <td class="num">0.1389</td>
-    <td class="num">-0.0165</td>
-    <td class="num">0.002331</td>
+    <td class="num">-0.0165 →
+                    0.00233</td>
+    <td class="num">+114%</td>
     <td><span class="st PASS">PASS</span></td>
     <td><span class="st PASS">PASS</span></td>
   </tr>
   
 </table>
 
-<h2>How to read this</h2>
+<h2>3 · How to read this</h2>
 <ul>
-  <li><b>CHANGED</b> — the update moved this metric's window distribution
-      beyond the calibrated line. Whether that is acceptable is a claim
-      decision, not a statistic: check the vs-reference columns.</li>
-  <li><b>NOT_SEPARATED</b> — no detectable difference at this line with this
-      many windows. Not a claim of equality.</li>
-  <li><b>INSUFFICIENT</b> — fewer than 5 usable windows on a side.</li>
+  <li><b>REGRESSION</b> — A passed the reference gate, B fails it.</li>
+  <li><b>IMPROVEMENT</b> — A failed, B passes. Never blocks approval.</li>
+  <li><b>CHANGED_WITHIN_GATE</b> — the distribution moved but both versions
+      sit on the same side of the reference gate; the reference test alone
+      would not have noticed. Needs a human judgment: intended or not?</li>
+  <li><b>STABLE</b> — no detected move, gate statuses unchanged.</li>
+  <li><b>NOT_SEPARATED</b> — no detectable difference at this line with
+      this many windows. Not a claim of equality.</li>
 </ul>
 
-<h2>Caveats</h2>
-<ul><li>the A-vs-B null is a permutation over windows, valid for exchangeable window sets; windows cut from one long simulated path share that path, so within-path long memory makes it slightly liberal (second-order at 1000-day windows for GARCH-class memory)</li><li>NOT_SEPARATED means no detectable difference at the alpha=0.01 line with this many windows — it is not a claim of equality</li><li>verdicts are per-metric; nothing aggregates them</li></ul>
+<h2>4 · Caveats</h2>
+<ul><li>the A-vs-B null is a permutation over windows, valid for exchangeable window sets; windows cut from one long simulated path share that path</li><li>measured family-wise false-positive rate of this design under H0 (same parameters, independent seeds): 0.005 at 15v15 windows (n=400 pairs), 0.0 at 6v6 (n=200) — conservative relative to the nominal alpha (docs/compare-calibration.json, tools/calibrate_compare.py)</li><li>measured power boundary: persistence drifts of |delta beta| <= 0.04 are mostly undetected at 15v15 windows, and a tail-df clip alone at high persistence is nearly invisible to unconditional window statistics (docs/compare-calibration.md)</li><li>NOT_SEPARATED means no detectable difference at the alpha=0.01 line with this many windows — it is not a claim of equality</li><li>the approval outcome is a versioned routing rule over required dimensions, not an aggregate; verdicts remain per-metric</li></ul>
 
-<h2>Provenance</h2>
+<h2>5 · Provenance</h2>
 <table>
-  <tr><th>Compare</th><td><code>9eb8254c479b</code> ·
-      sieve 0.2.0 · seed 20260802</td></tr>
+  <tr><th>Compare</th><td><code>0a377a2d9057</code> ·
+      sieve 0.3.0 · seed 20260802</td></tr>
   <tr><th>Suite hash</th><td><code>343042f8ceedf18a…</code></td></tr>
   <tr><th>Inputs</th><td>A input sha256 <code>e0262952a91d…</code>
       · B input sha256 <code>b99872a25a80…</code>
