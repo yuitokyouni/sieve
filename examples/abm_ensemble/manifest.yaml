@@ -1,0 +1,41 @@
+# Multi-run ABM ensemble example for `sieve inspect`.
+#
+# The runs are price-only + volume: returns are NOT shipped, so the
+# manifest must declare the derivation explicitly (sieve never derives
+# silently). Burn-in drops the herding model's transient.
+
+model_id: example-herding-abm
+model_version: "1.0"
+display_name: Example herding ABM (200 agents)
+model_family: agent-based
+authors:
+  - sieve examples
+license: MIT
+notes: >-
+  Minimal mood-herding market: a persistent CALM/EXCITED crowd mood sets
+  how many of 200 agents trade each step; the mood turns excited more
+  easily after negative returns; net random order flow moves the log
+  price; volume counts active agents. 6 seeds x 3500 steps (500-step
+  burn-in declared below). Regenerate with generate.py; the model exists
+  to demonstrate the research workflow, not to claim realism.
+parameters:
+  n_agents: 200
+  a_calm: 0.02
+  a_excited: 0.12
+  p_calm_to_excited: 0.006
+  p_excited_to_calm: 0.02
+  leverage_bias: 25.0
+  lambda_impact: 0.5
+
+geometry: multi_run_ensemble
+derive_return: log
+burn_in:
+  steps: 500
+
+runs:
+  - {file: runs/seed-011.csv, seed: 11}
+  - {file: runs/seed-012.csv, seed: 12}
+  - {file: runs/seed-013.csv, seed: 13}
+  - {file: runs/seed-014.csv, seed: 14}
+  - {file: runs/seed-015.csv, seed: 15}
+  - {file: runs/seed-016.csv, seed: 16}
