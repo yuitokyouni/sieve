@@ -95,4 +95,5 @@ def test_schemas_export(tmp_path):
     assert res.exit_code == 0
     names = {p.name for p in tmp_path.glob("*.schema.json")}
     assert "EvidenceBundle.schema.json" in names
-    assert len(names) == 11
+    assert "InspectBundle.schema.json" in names       # research workbench
+    assert len(names) == 16
