@@ -1,222 +1,216 @@
 # Sieve
 
-**What does your simulation actually prove?**
+**A research-first simulation validation workbench. What does your
+simulation actually show — and what does it prove?**
 
-Sieve tests simulation claims against empirical reference distributions and
-known simpler baselines, then writes a sealed, independently verifiable
-evidence bundle. Locally, offline, in seconds. There is no score.
+Sieve turns simulation output — a financial ABM's multi-seed runs, a GARCH
+sample, a bootstrap surrogate, an LLM-agent market — into standardized
+datasets, stylized-fact diagnostics, visual evidence reports and sealed,
+independently verifiable evidence bundles. Locally, offline, in seconds.
+There is no score.
 
-Example: a calibrated GARCH(1,1)-t simulation reproduces volatility
-clustering but **fails leverage asymmetry — exactly the mechanism it does not
-contain**. And on the volatility metrics it passes, the report says on the
-same row that those metrics cannot separate GARCH from real markets either:
-
-[![Example Sieve report](docs/report.png)](https://yuitokyouni.github.io/sieve/example-run/report/index.html)
-
-Read that exact report in your browser
-([rendered](https://yuitokyouni.github.io/sieve/example-run/report/index.html) ·
-[files](docs/example-run/)), or verify its integrity without running anything:
+Start with a short multi-seed ABM experiment (no reference data needed):
 
 ```
 git clone https://github.com/yuitokyouni/sieve && cd sieve
-pip install -e .                # or: uv pip install -e .
-sieve verify docs/example-run   # recomputes the seal + every artifact hash
+pip install -e .                     # or: uv pip install -e .
+sieve inspect examples/abm_ensemble  # 6 seeds, price+volume, burn-in dropped
 ```
 
-Reproduce it from scratch — same statuses, and (with the pinned package
-versions) the same `bundle_hash`, on your machine:
+That writes a sealed run directory with an exploratory HTML report — a
+stylized-fact **evidence atlas**: return-path texture, marginal
+distribution vs Gaussian, tail CCDF with Hill overlay, return and
+volatility ACFs, aggregation profile κ(Δt), leverage kernel c(τ),
+drift/variance-ratio diagnostics, and the volume–volatility relation when
+volume is present:
+
+![Sieve inspect report — evidence atlas](docs/report-inspect.png)
+
+Every card states what to look at, the data it used, the scalar metrics it
+corresponds to, its parameters and its known pitfalls. Diagnostics that
+the input cannot support come back `NOT_APPLICABLE` or `INSUFFICIENT`, and
+registered-but-unimplemented diagnostics render as `NOT_TESTED` roadmap
+cards. Nothing is aggregated into a score — by design and by test.
+
+## The workflow
+
+```
+simulation outputs
+    → standardized multi-run dataset        (sieve inspect / Python API)
+    → descriptive stylized-fact diagnostics
+    → visual evidence report                (sealed, offline HTML+SVG)
+    → optional reference-based inference    (sieve test)
+    → optional model/version comparison     (sieve compare)
+    → reproducible evidence bundle          (sieve verify)
+```
+
+Sieve never certifies "the model is correct". It answers: for **this
+input**, **this geometry**, **this claim** — which evidence supports,
+which contradicts, and which is undetermined.
+
+### Exploratory vs confirmatory — a hard line
+
+- **`sieve inspect`** is exploratory. It works without any reference, on
+  one short run or a 100-seed ensemble. It emits figures and descriptive
+  statistics with statuses `OBSERVED` / `INSUFFICIENT` / `NOT_APPLICABLE`
+  / `NOT_TESTED` — never PASS/FAIL. `OBSERVED` means "computed and
+  rendered from adequate data", not "the stylized fact holds".
+- **`sieve test`** is confirmatory. It evaluates a claim against a
+  versioned suite's shipped empirical reference with prespecified,
+  calibrated inference, and emits PASS / FAIL / WARN / NOT_TESTED /
+  INSUFFICIENT per evidence dimension.
+
+A figure can reveal anomalies a scalar test misses; a scalar test can
+reject what a figure makes look fine. Neither substitutes for the other,
+and the reports say so.
+
+## Research inputs
+
+`sieve inspect` accepts, without ever inferring a calendar, resampling, or
+silently converting anything:
+
+```
+timestamp,return               # legacy Tier-0 (still works everywhere)
+step,return                    # simulation time, no calendar
+step,price                     # returns derived ONLY with --derive-return
+run_id,step,return             # long format, many seeds in one file
+experiment/                    # directory-of-runs
+  manifest.yaml                #   model identity, seeds, burn-in, derivation
+  runs/seed-001.csv …
+```
+
+and from Python:
+
+```python
+import sieve
+ds = sieve.from_arrays(returns=r, volume=v)
+ds = sieve.from_runs([{"run_id": "s1", "return": r1, "seed": 1}, ...])
+ds = sieve.from_dataframe(df)          # pandas or polars
+```
+
+Rules that hold everywhere: runs are independent sampling units and are
+**never concatenated**; derived returns never cross a run boundary;
+price→return conversion (`log`/`simple`/`diff`) happens only when
+declared and is recorded as a transform; burn-in records dropped counts
+per run; non-finite values, duplicated steps and all-consuming burn-ins
+are explicit errors with fix suggestions. The **sampling geometry**
+(`single_long_series`, `multi_run_ensemble`, `multi_market_panel`,
+`paired_runs`, `short_exploratory_series`) is declared or defaulted
+structurally — what the input *can* support decides which diagnostics run,
+per metric and per figure, without one inadequate metric dragging down the
+rest.
+
+## Confirmatory testing (the original golden path — unchanged)
 
 ```
 sieve test examples/csv_returns --suite financial-daily@1.0 --claim descriptive-market-dynamics
 ```
 
-See [docs/reproduce.md](docs/reproduce.md) for the exact reproduction
-contract and expected hashes.
+`financial-daily@1.0` assesses long-horizon daily return simulations
+against 124 frozen reference windows from six equity indices, with a
+calibrated calendar-block bootstrap null (its measured size is disclosed
+on every row), Holm adjustment, baseline-blindness context on every PASS,
+and POST HOC badges on post-hoc diagnostics. It needs ≥ 5 non-overlapping
+1000-observation windows (≈ 20 years of daily data) — that is the honest
+requirement of distribution-over-windows inference, and shorter inputs get
+INSUFFICIENT, which is an answer, not an error. The suite is immutable;
+its content hash is recorded in every bundle that used it.
+Multi-run ensembles are *detected and refused* here with guidance to
+`inspect` — testing run-units against window-units would be a different
+method, and Sieve does not fake it
+([docs/research-workbench-migration.md](docs/research-workbench-migration.md)).
 
-## Model-update regression: the change-approval gate
-
-The workflow with the clearest practical use: a scenario generator gets
-recalibrated or replaced, and someone must decide whether the new version
-may go into production. Run both versions, then compare them directly:
-
-```
-sieve test examples/model_update/v1 --suite financial-daily@1.0 --claim descriptive-market-dynamics --out runs
-sieve test examples/model_update/v2 --suite financial-daily@1.0 --claim descriptive-market-dynamics --out runs
-sieve compare runs/<run-v1> runs/<run-v2>
-```
-
-The shipped example is a bad refit (volatility persistence collapsed, tail
-df clipped). The report answers the three questions a reviewer asks:
-
-- **What was declared?** The manifest parameter diff: `beta 0.875 → 0.80`,
-  `t_df 6.47 → 30`. Measured changes with no declared cause are flagged as
-  a provenance question, not only a statistical one.
-- **What measurably changed, and which way?** Each metric gets a verdict
-  (CHANGED / NOT_SEPARATED, permutation test with measured size — see
-  `docs/compare-calibration.md`) and a *transition* against the reference
-  gate: REGRESSION, IMPROVEMENT, CHANGED_WITHIN_GATE, STABLE. In the
-  example, `excess_kurtosis` (median −92%) and `acf_abs_20` REGRESS;
-  `acf_abs_1` is the row this gate exists for — clustering **halved**, both
-  versions still PASS the reference (limited power against ~6 calendar
-  blocks), only the direct A-vs-B test sees it: CHANGED_WITHIN_GATE.
-- **Does a human need to look?** A versioned approval policy over the
-  claim's required dimensions — a routing rule, never a score — returns
-  `REVIEW_REQUIRED` with the triggering rows listed (or
-  `NO_CHANGE_DETECTED`; improvements alone never block).
-
-The output is a sealed `compare.json` + report
-([browse the frozen one](https://yuitokyouni.github.io/sieve/example-update/compare/report/index.html))
-— the same change-approval evidence, in the same format, every release.
-Tampered or cross-suite inputs are refused before anything is computed.
+Model updates are gated by `sieve compare RUN_A RUN_B`: per-metric
+CHANGED / NOT_SEPARATED verdicts, transitions against the reference gate
+(REGRESSION / IMPROVEMENT / CHANGED_WITHIN_GATE / STABLE), the declared
+parameter diff next to the measured changes, and a versioned approval
+policy that routes review — never scores
+([browse the frozen example](https://yuitokyouni.github.io/sieve/example-update/compare/report/index.html)).
 
 ## What a run produces
 
 ```
-manifest.json                     run identity, seed tree, environment
-observations.parquet              per-window metric values (the raw evidence)
-results.json                      per-metric tests: KS, p, adjusted p, status
-findings.json                     FAILs turned into author-actionable findings
-artifacts/baseline_context.json   which baselines each metric cannot separate
-report/index.html                 the report, readable without Sieve
-evidence_bundle.json              everything above, in one sealed schema
-bundle.sha256                     sha256sum-compatible integrity sidecar
+manifest.json                 run identity, seed tree, environment
+observations.parquet          per-run (inspect) or per-window (test) metric values
+figures/*.svg                 deterministic, dependency-free evidence figures
+figures.json                  per-figure status, parameters, caveats
+results.json                  (test) per-metric inference results
+report/index.html             the report, readable anywhere, no network
+inspect_bundle.json |         everything above in one sealed schema
+  evidence_bundle.json
+bundle.sha256                 sha256sum-compatible integrity sidecar
 ```
 
-## What a result means
-
-- **A claim, not a model, is evaluated.** `descriptive-market-dynamics` asks
-  whether the input reproduces the descriptive dynamics of major equity-index
-  daily returns — nothing else. Statuses answer "does the evidence support
-  using this simulation *for this claim*".
-- **Ten evidence dimensions, never averaged.** Each dimension ends at PASS,
-  FAIL, WARN, NOT_TESTED or INSUFFICIENT. `NOT_TESTED` and `INSUFFICIENT`
-  are first-class answers. There is no overall score anywhere in the system,
-  by design and by test (`tests/unit/test_no_score.py`).
-- **PASS is calibrated, and disclosed as weak where it is weak.** The decision
-  line (α = 0.01, Holm-adjusted) is the nominal level whose *measured* true
-  size is 3–5% under the reference dependence structure — a naive permutation
-  test rejects 56% at nominal 5% on this design, so Sieve does not use one.
-  Every PASS row also lists which shipped baselines that metric *cannot*
-  separate from the reference.
-- **Post-hoc diagnostics are labeled.** Two suite metrics (`variance_ratio_20`,
-  `drift`) were added to the research battery after calibrated agent-based
-  models exposed failures the original battery could not see. They carry a
-  POST HOC badge in every report — disclosure, not confession.
-- **Bundles are sealed twice.** `bundle_hash` pins *what was measured* — data
-  content hash, suite hash, claim, seed tree, results — and excludes run IDs,
-  timestamps, filesystem paths and the machine fingerprint, so the same input
-  bytes with the same suite, seed and package versions reproduce the same
-  seal on any machine. `bundle.sha256` pins *what was shipped*: the exact
-  files, including every artifact hash; `sha256sum -c bundle.sha256` works
-  with no Sieve installed. `sieve verify` checks both layers and reports
-  tampering as a result, not a crash. Design history in
-  [docs/architecture.md](docs/architecture.md).
-
-## Scope — what this suite can assess
-
-`financial-daily@1.0` assesses **long-horizon daily return simulations**: it
-needs at least five non-overlapping windows of 1000 daily observations
-(≈ 20 years). That is the honest requirement for distribution-over-windows
-testing against the shipped reference; shorter inputs get INSUFFICIENT, which
-is an answer, not an error.
-
-It follows that Sieve does not claim "any simulation can be adapted". The
-measured objects are **scenario-generating models, one suite per use**: a
-claim needs a suite whose evidence matches it, and an agent-based model is
-one kind of generator, not a separate product. Two distinctions are
-load-bearing:
-
-- **Real-world vs risk-neutral scenarios need different suites.** Stylized
-  facts (tails, clustering, leverage, dependence) test real-world-measure
-  realism. Risk-neutral scenario sets are validated by martingale tests and
-  market-consistency repricing — different mathematics, never the same
-  suite. `financial-daily@1.0` is a real-world-measure suite.
-- **A limit-order-book simulator should not be forced to emit 20 years of
-  daily returns** — it needs its own claims and tests (spread, depth,
-  order-flow imbalance, impact, inventory response), which is future suite
-  work, not an adapter.
-
-```
-Sieve Core
-│
-├── financial-daily             (this release; real-world measure)
-│   └── descriptive-market-dynamics
-│
-├── esg-real-world              (planned: insurer economic scenario sets;
-│   └── …                        NAIC-style stylized facts + acceptance
-│                                criteria; monthly multi-path input)
-├── esg-risk-neutral            (planned: martingale / market-consistency
-│   └── …                        tests — deliberately a separate suite)
-│
-├── market-microstructure       (planned; needs a research phase)
-│   ├── descriptive-lob-dynamics
-│   └── execution-response
-│
-└── ...
-```
-
-The architecture makes this natural rather than inconvenient: evidence is
-claim-scoped, so different generator kinds get different suites instead of
-one universal "realism" test. Scoping notes for the ESG suites:
-[docs/roadmap-esg.md](docs/roadmap-esg.md).
-
-## Where the science comes from
-
-The metrics, baselines, reference statistics, calibrated inference and every
-disclosed blind spot are migrated verbatim from the
-[sieve-bench research repository](https://github.com/yuitokyouni/sieve-bench),
-and golden regression tests pin the product to it bit-for-bit
-(`tests/golden/`). The suite ships *derived* window statistics (124 reference
-windows × 8 metrics, with calendar blocks and per-index source hashes) — raw
-index data is neither shipped nor fetched.
-
-Baselines declare their mechanisms explicitly (`sieve baselines list`):
-`gaussian` (nothing), `student_t` (heavy tails only), `iid_bootstrap`
-(marginal only), `block_bootstrap` (marginal + short memory), `garch_norm`
-(clustering only), `garch_t` (clustering + heavy tails, no asymmetry).
+**Bundles are sealed twice.** `bundle_hash` pins *what was measured* —
+input content hash, suite hash, seed tree, results, figure statuses — and
+excludes run IDs, timestamps, paths and machine fingerprints, so the same
+input + suite + seed + package versions reproduce the same seal on any
+machine. `bundle.sha256` pins *what was shipped*, including every figure
+SVG. `sieve verify` checks both layers on both bundle kinds and reports
+tampering as a result, not a crash
+([docs/architecture.md](docs/architecture.md),
+[docs/reproduce.md](docs/reproduce.md)).
 
 ## What Sieve will not do
 
-No reality score. No model rankings or leaderboards. No "certified" badges.
-No generic LLM evaluation. No uploading of proprietary code or data. No
-arbitrary remote code execution. These are product invariants, not roadmap
-gaps; the no-score invariant is enforced by tests.
+No overall realism score. No model rankings or leaderboards. No
+"certified" badges. No "8 of 11 stylized facts reproduced" counts — a
+figure status is data adequacy, never a point. No silent resampling,
+interpolation, frequency inference or run concatenation. No fabricated
+numbers when data is insufficient. These are invariants enforced by tests
+(`tests/unit/test_no_score.py`, `tests/integration/test_inspect.py`).
+
+## The stylized-facts atlas
+
+[docs/stylized-facts-atlas.md](docs/stylized-facts-atlas.md) maps the
+eleven classic stylized facts of financial returns (Cont 2001) to
+observables, scalar metrics, figures, minimum data, estimator choices,
+failure modes and implementation status. Nine diagnostic figure families
+are implemented; conditional heavy tails, time-scale asymmetry and
+gain/loss first-passage asymmetry are registered `NOT_TESTED` with their
+prespecification requirements documented — they become real by
+implementation and version bump, not by silently appearing.
 
 ## CLI
 
 ```
-sieve doctor                 environment + suite check (offline, no network)
+sieve inspect INPUT [--suite S] [--out DIR] [--derive-return M]
+                    [--burn-in-steps N | --burn-in-fraction F]
 sieve test INPUT --suite S --claim C [--out DIR] [--seed N]
 sieve compare RUN_A RUN_B    model-update regression between two sealed runs
-sieve verify RUN_DIR         exit 0 intact / 4 modified / 3 missing
+sieve verify RUN_DIR         works on inspect and test runs; exit 0/4/3
 sieve report RUN_DIR         re-render HTML from the stored bundle
+sieve doctor                 environment + suite check (offline, no network)
 sieve suites list|show       installed suites, their hashes and claims
-sieve metrics list|show      metrics with dimensions and known blind spots
+sieve metrics list|show      metrics with dimensions, requirements, blind spots
 sieve baselines list         baselines with declared mechanisms
 sieve schemas export         JSON Schema for every durable artifact
 ```
 
-Exit codes separate evaluation from execution: a model FAILing a dimension is
-a *result* (exit 0); only invalid input (2), missing pieces (3), tampering
+Exit codes separate evaluation from execution: FAIL or INSUFFICIENT is a
+*result* (exit 0); only invalid input (2), missing pieces (3), tampering
 (4) or a Sieve bug (1) are errors.
 
-## Input contract (Tier 0)
+## Where the science comes from
 
-`returns.csv` with columns `timestamp,return` (daily log returns), 50+ rows,
-optionally a `manifest.yaml` with model identity, parameters, `git_commit`,
-`code_uri`. Anything you do not state is recorded as absent — provenance gaps
-appear in the report rather than being silently filled.
+The metrics, baselines, reference statistics, calibrated inference and
+every disclosed blind spot are migrated verbatim from the
+[sieve-bench research repository](https://github.com/yuitokyouni/sieve-bench),
+and golden regression tests pin the product to it bit-for-bit
+(`tests/golden/`). Figures share the *same* computation code as the
+metrics — the leverage kernel's shaded region averages to the `leverage`
+metric exactly, the ACF curves hit `acf_abs_1`/`acf_abs_20` exactly, and
+tests enforce it. Insurer ESG / ERM suites (NAIC-style acceptance
+criteria, martingale tests) remain planned domain suites
+([docs/roadmap-esg.md](docs/roadmap-esg.md)); they are a future
+application of this workbench, not its center.
 
 ## Status
 
-v0.1.1: the offline golden path above is complete and tested. 69 of the 78
-tests run anywhere from this repo alone (cross-path determinism, both tamper
-layers, no-score enforcement among them); the 8 bit-for-bit parity tests
-against the research code run in CI against a pinned sieve-bench checkout —
-where a missing checkout is a failure, not a skip — and the 1 test that
-recomputes the 124 reference windows runs only where the raw index data has
-been fetched locally, because that data is not redistributable. CI also
-reruns the golden path on every push and asserts the fresh runner's seal
-equals the committed example's. `STATUS.md` maps every acceptance criterion
-to its test; `docs/architecture.md` records design decisions including the
-seal-scope corrections found by our own audit tests.
+v0.4.0: the research workbench (multi-run inputs, `sieve inspect`, figure
+registry, evidence atlas) plus the original confirmatory golden path,
+which is unchanged and still frozen bit-for-bit — regenerating the shipped
+example reproduces identical statuses and KS values, with the seal
+re-pinned to the new version. See `STATUS.md`, `CHANGELOG.md` and
+[docs/research-workbench-migration.md](docs/research-workbench-migration.md)
+for what was implemented, deferred, and why.

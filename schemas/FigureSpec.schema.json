@@ -1,0 +1,107 @@
+{
+  "$defs": {
+    "JsonValue": {}
+  },
+  "additionalProperties": false,
+  "description": "Registry entry for one diagnostic figure (task \u00a75.2).\n\nFigures are versioned method declarations, exactly like metrics: what\nthe figure shows, what input it needs, what it is known to mislead on.",
+  "properties": {
+    "display_name": {
+      "title": "Display Name",
+      "type": "string"
+    },
+    "figure_id": {
+      "title": "Figure Id",
+      "type": "string"
+    },
+    "function_path": {
+      "default": "",
+      "title": "Function Path",
+      "type": "string"
+    },
+    "implemented": {
+      "default": true,
+      "title": "Implemented",
+      "type": "boolean"
+    },
+    "known_visual_pitfalls": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Known Visual Pitfalls",
+      "type": "array"
+    },
+    "minimum_observations_per_run": {
+      "default": 300,
+      "title": "Minimum Observations Per Run",
+      "type": "integer"
+    },
+    "minimum_runs": {
+      "default": 1,
+      "title": "Minimum Runs",
+      "type": "integer"
+    },
+    "parameters": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Parameters",
+      "type": "object"
+    },
+    "reading_guide": {
+      "default": "",
+      "title": "Reading Guide",
+      "type": "string"
+    },
+    "references": {
+      "items": {
+        "type": "string"
+      },
+      "title": "References",
+      "type": "array"
+    },
+    "related_metrics": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Related Metrics",
+      "type": "array"
+    },
+    "required_columns": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Required Columns",
+      "type": "array"
+    },
+    "stylized_fact": {
+      "title": "Stylized Fact",
+      "type": "string"
+    },
+    "supported_claims": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Supported Claims",
+      "type": "array"
+    },
+    "supported_geometries": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Supported Geometries",
+      "type": "array"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "figure_id",
+    "version",
+    "display_name",
+    "stylized_fact"
+  ],
+  "title": "FigureSpec",
+  "type": "object"
+}

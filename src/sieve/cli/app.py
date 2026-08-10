@@ -346,7 +346,10 @@ def schemas_export(out: Path = typer.Option(Path("schemas"), "--out")):
     for name in ("EvidenceBundle", "ModelManifest", "DatasetManifest",
                  "ClaimSpec", "MetricSpec", "BaselineSpec", "TestResult",
                  "FailureFinding", "ValidationProfile", "TestSuiteManifest",
-                 "RunManifest"):
+                 "RunManifest",
+                 # research workbench artifacts (additive, v0.4.0)
+                 "InspectBundle", "FigureSpec", "FigureResult",
+                 "GeometrySummary", "MetricRequirements"):
         cls = getattr(models, name)
         path = out / f"{name}.schema.json"
         path.write_text(json.dumps(cls.model_json_schema(), indent=2,

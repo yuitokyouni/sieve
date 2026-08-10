@@ -69,8 +69,12 @@ The scientific seal in `evidence_bundle.json` (`bundle_hash`) and printed by
 `sieve test`:
 
 ```
-43b88e5f166bba0fe5ede860afdf9b3132c44e4a3cc198e6b5f551d9b9549cd4
+187519f103a286961aac766539b60bee6d811d96257e0d9fd337906ed52fc54f
 ```
+
+(The seal pins the sieve version; this value is for v0.4.0. The v0.3.0
+example sealed `43b88e5f166bba0f…` with byte-identical statuses and KS
+values — the refresh is recorded in the CHANGELOG.)
 
 The suite hash recorded in the same bundle (`suite.suite_hash`):
 

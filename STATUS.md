@@ -163,3 +163,32 @@ made its user concrete; the reproduction milestone is unchanged.)
 - `polars` writes `observations.parquet`; parquet bytes are not asserted
   byte-stable across polars versions (values are, via frame equality in
   tests; the deterministic seal covers results, not parquet bytes).
+
+## M2 — research workbench (v0.4.0): DONE
+
+Direction change to a research-first simulation validation workbench
+(`docs/research-workbench-migration.md` records the audit, the freeze
+surface, and the implemented/deferred split).
+
+- [x] Generalized dataset contract: multi-run, step/timestamp time,
+      explicit price→return, burn-in, sampling geometry, extra
+      observables; Python API (`tests/unit/test_dataset.py`)
+- [x] Per-metric input requirements (`MetricRequirements`), per-metric
+      NOT_APPLICABLE/INSUFFICIENT without cross-contamination
+- [x] `sieve inspect`: exploratory runs with sealed `InspectBundle`,
+      no PASS/FAIL anywhere (`tests/integration/test_inspect.py`)
+- [x] Figure registry + 9 deterministic SVG diagnostics sharing metric
+      computation code, bit-consistency tested
+      (`tests/unit/test_figures.py`); 3 registered NOT_TESTED roadmap
+      figures (`docs/stylized-facts-atlas.md`)
+- [x] Evidence-atlas HTML report: self-contained, offline, inlined SVG,
+      per-card reading guides/caveats/parameters, no aggregate anywhere
+- [x] Directional scientific tests on known processes
+      (`tests/unit/test_scientific.py`)
+- [x] New suite `financial-stylized-facts@0.1.0`; `financial-daily@1.0.0`
+      untouched; old bundles verify unchanged; frozen examples
+      regenerated for the version bump with byte-identical statuses
+- [ ] Deferred (declared, not faked): confirmatory multi-run-ensemble
+      inference vs the window reference; paired-seed/intervention
+      comparison; conditional tails, time-scale asymmetry, gain/loss
+      first-passage figures
