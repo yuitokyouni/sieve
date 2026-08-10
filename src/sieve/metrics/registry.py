@@ -12,11 +12,23 @@ from collections.abc import Callable
 import numpy as np
 
 from sieve.core.enums import Prespecification
-from sieve.core.models import MetricSpec
+from sieve.core.models import MetricRequirements, MetricSpec
 from sieve.metrics import asymmetry, dependence, distribution, tails, volatility
 
 _REVERSAL_BLIND = "time-reversal invariant: identical on a series and its reverse"
 _LOCATION_BLIND = "location invariant: cannot see drift (by design; see drift metric)"
+
+# figure_id each metric's exploratory evidence lives in (figures/registry.py)
+_PLOT_FOR = {
+    "excess_kurtosis": "marginal_distribution",
+    "hill_left": "tail_ccdf",
+    "hill_right": "tail_ccdf",
+    "acf_abs_1": "volatility_acf",
+    "acf_abs_20": "volatility_acf",
+    "leverage": "leverage_kernel",
+    "variance_ratio_20": "drift_variance_diagnostic",
+    "drift": "drift_variance_diagnostic",
+}
 
 
 def _spec(metric_id: str, fn: Callable, display: str, signal: str,
@@ -28,7 +40,12 @@ def _spec(metric_id: str, fn: Callable, display: str, signal: str,
         function_path=f"{fn.__module__}.{fn.__name__}",
         input_contract="1d float array of log returns, length >= 300",
         scale_invariant=True, intended_signal=signal,
-        known_blind_spots=blind, prespecification=pre, references=refs)
+        known_blind_spots=blind, prespecification=pre, references=refs,
+        requirements=MetricRequirements(
+            required_columns=["return"],
+            minimum_observations_per_run=300,
+            exploratory_plot_id=_PLOT_FOR.get(metric_id),
+            confirmatory_test_id=f"{metric_id}::vs-reference"))
 
 
 _ENTRIES: dict[str, tuple[Callable, MetricSpec, str]] = {}

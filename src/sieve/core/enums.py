@@ -31,6 +31,22 @@ class Prespecification(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
+class ExploratoryStatus(str, Enum):
+    """Status of one exploratory diagnostic (``sieve inspect``).
+
+    Deliberately weaker vocabulary than :class:`Status` — inspect mode never
+    claims PASS/FAIL, and OBSERVED asserts only that the diagnostic was
+    computed and rendered from adequate data, **not** that a stylized fact
+    "holds". Reading the figure is the user's job; confirmatory decisions
+    belong to ``sieve test``.
+    """
+
+    OBSERVED = "OBSERVED"              # computed + rendered; data adequate
+    INSUFFICIENT = "INSUFFICIENT"      # below the figure's declared minimum
+    NOT_APPLICABLE = "NOT_APPLICABLE"  # required column/geometry absent
+    NOT_TESTED = "NOT_TESTED"          # registered but not implemented/enabled
+
+
 class Severity(str, Enum):
     INFO = "INFO"
     LOW = "LOW"
