@@ -272,10 +272,19 @@ def verify(run_dir: Path = typer.Argument(..., help="run directory or "
 
 @app.command()
 def report(run_dir: Path = typer.Argument(..., help="existing run directory")):
-    """Re-render report/index.html from the stored evidence bundle."""
+    """Re-render report/index.html from the stored bundle (test or inspect)."""
+    if (run_dir / "inspect_bundle.json").exists():
+        from sieve.provenance.bundle import load_inspect
+        from sieve.reporting.html import render_inspect_report
+        bundle = load_inspect(run_dir / "inspect_bundle.json")
+        out = render_inspect_report(run_dir / "report" / "index.html",
+                                    bundle, run_dir)
+        typer.echo(str(out))
+        return
     bundle_path = run_dir / "evidence_bundle.json"
     if not bundle_path.exists():
-        _fail(EXIT_MISSING, f"no evidence_bundle.json in {run_dir}")
+        _fail(EXIT_MISSING, f"no evidence_bundle.json (or inspect_bundle"
+                            f".json) in {run_dir}")
     from sieve.provenance.bundle import load
     from sieve.reporting.html import render_report
     bundle = load(bundle_path)
