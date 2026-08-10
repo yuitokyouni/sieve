@@ -1,0 +1,67 @@
+# financial-stylized-facts@0.1.0 — exploratory stylized-fact diagnostics
+# for simulated market data (ABM ensembles, econometric generators,
+# bootstrap surrogates, LLM-agent markets).
+#
+# This suite is the default for `sieve inspect`. It ships NO reference
+# distributions and declares NO confirmatory inference: it produces
+# descriptive statistics and diagnostic figures only. Statuses are
+# OBSERVED / INSUFFICIENT / NOT_APPLICABLE / NOT_TESTED — never PASS/FAIL.
+# For confirmatory testing against an empirical reference, use
+# financial-daily@1.0 with `sieve test`.
+#
+# Immutable once published: suite_hash covers this file and every file in
+# this directory; a bundle records the hash it actually used.
+
+suite_id: financial-stylized-facts
+version: 0.1.0
+
+claim_types:
+  - exploratory
+
+reference:
+  dataset: none (exploratory suite; no reference comparison is performed)
+  provenance: >-
+    Descriptive diagnostics are computed from the input dataset alone.
+    Absence of a reference means figures show no empirical overlay and no
+    confirmatory decision of any kind is made.
+
+# Scalar metrics evaluated per run (not per window): the same registered
+# functions financial-daily@1.0.0 uses, so exploratory numbers and any
+# later confirmatory numbers share one computation.
+metrics:
+  - excess_kurtosis@1
+  - hill_left@1
+  - hill_right@1
+  - acf_abs_1@1
+  - acf_abs_20@1
+  - leverage@1
+  - variance_ratio_20@1
+  - drift@1
+
+# Diagnostic figures (figures/registry.py). Figures registered but not yet
+# implemented render as NOT_TESTED cards; that is a roadmap entry, not an
+# error.
+figures:
+  - return_path@1
+  - marginal_distribution@1
+  - tail_ccdf@1
+  - return_acf@1
+  - volatility_acf@1
+  - aggregation_profile@1
+  - leverage_kernel@1
+  - drift_variance_diagnostic@1
+  - volume_volatility@1
+  - conditional_tails@1
+  - timescale_asymmetry@1
+  - gain_loss_asymmetry@1
+
+baselines: []
+
+inference:
+  method: none
+  note: >-
+    Exploratory mode performs no hypothesis tests. OBSERVED means "the
+    diagnostic was computed and rendered from adequate data", nothing
+    stronger. Visual inspection never substitutes for the confirmatory
+    workflow, and confirmatory metrics can miss anomalies a figure shows —
+    both directions of blindness are real.
