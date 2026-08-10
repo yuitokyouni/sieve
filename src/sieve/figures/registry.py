@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from sieve.core.dataset import Geometry, SimulationDataset
+from sieve.core.dataset import SimulationDataset
 from sieve.core.enums import ExploratoryStatus
 from sieve.core.models import FigureResult, FigureSpec
 from sieve.figures import plots
