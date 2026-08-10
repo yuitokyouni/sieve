@@ -1,0 +1,206 @@
+"""The exploratory path: input → dataset → per-run metrics → figures →
+sealed inspect bundle + report.
+
+Contract (task §4.1):
+
+- works without any reference data and on a single short run;
+- produces descriptive statistics and diagnostic figures only;
+- emits no PASS/FAIL and no p-values — statuses are OBSERVED /
+  INSUFFICIENT / NOT_APPLICABLE / NOT_TESTED (defined in
+  ``core.enums.ExploratoryStatus``);
+- the report states its exploratory nature on every page;
+- inadequate metrics/figures resolve individually; nothing aggregates.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import json
+import uuid
+from pathlib import Path
+
+import numpy as np
+
+from sieve import __version__
+from sieve.adapters.dataset import load_dataset
+from sieve.core.dataset import SimulationDataset
+from sieve.core.enums import ExploratoryStatus
+from sieve.core.hashing import sha256_file
+from sieve.core.models import (
+    ArtifactRef,
+    GeometrySummary,
+    InspectBundle,
+    MetricObservation,
+    RunManifest,
+    RunSummary,
+)
+from sieve.figures.registry import render_figures
+from sieve.metrics import registry as metric_registry
+from sieve.provenance.bundle import seal_inspect, write_inspect
+from sieve.provenance.environment import environment_fingerprint, make_rngs
+from sieve.reporting.html import render_inspect_report
+from sieve.suites.loader import load as load_suite
+
+DEFAULT_SUITE = "financial-stylized-facts@0.1"
+
+
+def _geometry_summary(ds: SimulationDataset) -> GeometrySummary:
+    return GeometrySummary(
+        geometry=ds.geometry.value, geometry_source=ds.geometry_source,
+        time_basis=ds.time_basis, n_runs=ds.n_runs,
+        n_obs_total=ds.n_obs_total, columns=ds.columns(),
+        runs=[RunSummary(run_id=r.run_id, seed=r.seed,
+                         n_obs_raw=r.n_obs_raw, n_obs=r.n_obs,
+                         n_burned=r.n_burned,
+                         irregular_spacing=r.irregular_spacing)
+              for r in ds.runs])
+
+
+def _metric_observations(ds: SimulationDataset, metric_refs: list[str]
+                         ) -> list[MetricObservation]:
+    """Per-run metric values, gated by each metric's declared requirements.
+
+    An inadequate (run, metric) pair becomes its own INSUFFICIENT /
+    NOT_APPLICABLE observation; it never blocks other metrics or runs.
+    """
+    out: list[MetricObservation] = []
+    for mref in metric_refs:
+        _, spec, _dim = metric_registry.resolve(mref)
+        req = spec.requirements
+        min_obs = req.minimum_observations_per_run if req else 300
+        needed = req.required_columns if req else ["return"]
+        for run in ds.runs:
+            missing = [c for c in needed if c not in run.columns]
+            if missing:
+                out.append(MetricObservation(
+                    metric_ref=mref, run_id=run.run_id,
+                    status=ExploratoryStatus.NOT_APPLICABLE,
+                    note=f"run has no '{'/'.join(missing)}' column"))
+                continue
+            if run.n_obs < min_obs:
+                out.append(MetricObservation(
+                    metric_ref=mref, run_id=run.run_id,
+                    status=ExploratoryStatus.INSUFFICIENT,
+                    note=f"{run.n_obs} observations < metric minimum "
+                         f"{min_obs}"))
+                continue
+            v = metric_registry.compute(mref, run.columns["return"])
+            if not np.isfinite(v):
+                out.append(MetricObservation(
+                    metric_ref=mref, run_id=run.run_id,
+                    status=ExploratoryStatus.INSUFFICIENT,
+                    note="metric returned a non-finite value on this run"))
+            else:
+                out.append(MetricObservation(
+                    metric_ref=mref, run_id=run.run_id, value=float(v),
+                    status=ExploratoryStatus.OBSERVED))
+    return out
+
+
+def _write_observations(run_dir: Path, ds: SimulationDataset,
+                        observations: list[MetricObservation],
+                        metric_refs: list[str]) -> None:
+    import polars as pl
+
+    by_metric: dict[str, dict[str, float | None]] = {}
+    for ob in observations:
+        mid = ob.metric_ref.partition("@")[0]
+        by_metric.setdefault(mid, {})[ob.run_id] = ob.value
+    rows: dict[str, list] = {
+        "run_id": [r.run_id for r in ds.runs],
+        "n_obs": [r.n_obs for r in ds.runs],
+    }
+    for mref in metric_refs:
+        mid = mref.partition("@")[0]
+        vals = by_metric.get(mid, {})
+        rows[mid] = [vals.get(r.run_id) for r in ds.runs]
+    pl.DataFrame(rows).write_parquet(run_dir / "observations.parquet")
+
+
+def run_inspect(input_path: str | Path,
+                suite_ref: str = DEFAULT_SUITE,
+                out_root: str | Path = ".sieve/runs",
+                master_seed: int = 20260802,
+                derive: str | None = None,
+                burn_in_steps: int | None = None,
+                burn_in_fraction: float | None = None) -> Path:
+    """Run the exploratory inspection; return the new run directory."""
+    suite = load_suite(suite_ref)
+    ds, model, dataset_manifest = load_dataset(
+        input_path, derive=derive, burn_in_steps=burn_in_steps,
+        burn_in_fraction=burn_in_fraction)
+
+    _rngs, seed_tree = make_rngs(master_seed)
+    run_id = uuid.uuid4().hex[:12]
+    run_dir = Path(out_root) / run_id
+    (run_dir / "report").mkdir(parents=True, exist_ok=True)
+
+    observations = _metric_observations(ds, suite.manifest.metrics)
+    _write_observations(run_dir, ds, observations, suite.manifest.metrics)
+    figures = render_figures(ds, suite.figures, run_dir)
+
+    manifest = RunManifest(
+        run_id=run_id, created_at=dt.datetime.now(dt.timezone.utc),
+        sieve_version=__version__,
+        command=f"sieve inspect {input_path} --suite {suite_ref}",
+        master_seed=master_seed, seed_tree=seed_tree,
+        environment=environment_fingerprint(),
+        input_path=str(input_path),
+        input_hash=dataset_manifest.content_hash)
+
+    limitations = [
+        "EXPLORATORY: this run makes no confirmatory decision; figures and "
+        "descriptive statistics support visual inspection only",
+        "no reference comparison was performed; nothing here says the "
+        "simulation matches any real market",
+        "OBSERVED means the diagnostic was computed and rendered from "
+        "adequate data — it does not mean a stylized fact 'holds'",
+        "confirmatory claims require `sieve test` against a reference suite "
+        "with prespecified inference",
+    ]
+    for c in ds.caveats:
+        limitations.append(f"input caveat: {c}")
+
+    bundle = InspectBundle(
+        bundle_id=uuid.uuid4(),
+        created_at=dt.datetime.now(dt.timezone.utc),
+        run_manifest=manifest, model=model, dataset=dataset_manifest,
+        suite_ref=f"{suite.manifest.suite_id}@{suite.manifest.version}",
+        suite_hash=suite.manifest.suite_hash,
+        geometry=_geometry_summary(ds),
+        figures=figures, metric_observations=observations,
+        limitations=limitations, artifact_index=[])
+
+    # Seal first (the report displays the seal); the artifact index is
+    # filled afterwards under the file-integrity layer, exactly like the
+    # confirmatory bundle.
+    seal_inspect(bundle)
+
+    _write_json(run_dir / "manifest.json",
+                json.loads(manifest.model_dump_json()))
+    _write_json(run_dir / "dataset_summary.json",
+                json.loads(bundle.geometry.model_dump_json()))
+    _write_json(run_dir / "figures.json",
+                [json.loads(f.model_dump_json()) for f in figures])
+    render_inspect_report(run_dir / "report" / "index.html", bundle, run_dir)
+
+    rels = ["manifest.json", "dataset_summary.json", "observations.parquet",
+            "figures.json", "report/index.html"]
+    rels += sorted(f"figures/{p.name}" for p in
+                   (run_dir / "figures").glob("*.svg")) \
+        if (run_dir / "figures").is_dir() else []
+    for rel in rels:
+        p = run_dir / rel
+        kind = ("report" if rel.startswith("report") else
+                "figure" if rel.startswith("figures") else "table")
+        bundle.artifact_index.append(
+            ArtifactRef(path=rel, sha256=sha256_file(p), kind=kind))
+
+    write_inspect(bundle, run_dir)
+    return run_dir
+
+
+def _write_json(path: Path, data) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=1, sort_keys=True,
+                               ensure_ascii=False) + "\n")

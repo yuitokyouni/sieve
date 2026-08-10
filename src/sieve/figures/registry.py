@@ -33,6 +33,11 @@ _CONT = "Cont (2001), Quantitative Finance 1(2), 223-236"
 _register(
     plots.fig_return_path,
     figure_id="return_path", version="1",
+    reading_guide=(
+        "Look for episodes where large |r| clusters in time (clustering/intermittency) "
+        "and for drifts or level shifts in the band of typical returns. Across runs, "
+        "textures should vary in detail but not in kind."
+    ),
     display_name="Return path / volatility texture",
     stylized_fact="volatility clustering, intermittency",
     minimum_observations_per_run=50,
@@ -49,6 +54,11 @@ _register(
 _register(
     plots.fig_marginal_distribution,
     figure_id="marginal_distribution", version="1",
+    reading_guide=(
+        "On the linear panel the simulated density vs the Gaussian shows peakedness; "
+        "the log-y panel shows whether the tails sit above the Gaussian (heavy tails) "
+        "and how far out they extend."
+    ),
     display_name="Marginal distribution vs Gaussian",
     stylized_fact="heavy tails",
     minimum_observations_per_run=200,
@@ -64,6 +74,11 @@ _register(
 _register(
     plots.fig_tail_ccdf,
     figure_id="tail_ccdf", version="1",
+    reading_guide=(
+        "A roughly straight upper region on log-log axes is consistent with power-law- "
+        "like tails; the dashed line shows the Hill fit over the marked k region only. "
+        "Compare the two tails for asymmetry."
+    ),
     display_name="Tail CCDF with Hill overlay",
     stylized_fact="heavy tails (tail index)",
     minimum_observations_per_run=300,
@@ -78,6 +93,11 @@ _register(
 _register(
     plots.fig_return_acf,
     figure_id="return_acf", version="1",
+    reading_guide=(
+        "Values should sit mostly inside the band at all displayed lags if returns are "
+        "serially uncorrelated. A slow decay or systematic sign pattern indicates "
+        "predictability the model may not intend."
+    ),
     display_name="Autocorrelation of returns",
     stylized_fact="absence of autocorrelation in returns",
     minimum_observations_per_run=200,
@@ -91,6 +111,12 @@ _register(
 _register(
     plots.fig_volatility_acf,
     figure_id="volatility_acf", version="1",
+    reading_guide=(
+        "Positive, slowly decaying ACF(|r|) (and ACF(r^2)) is the "
+        "volatility-clustering "
+        "signature; compare the decay shape, not one lag. The log-log view helps judge "
+        "slow decay but fits nothing."
+    ),
     display_name="Autocorrelation of |r| and r^2",
     stylized_fact="volatility clustering; slow decay of volatility "
                   "autocorrelation",
@@ -106,6 +132,11 @@ _register(
 _register(
     plots.fig_aggregation_profile,
     figure_id="aggregation_profile", version="1",
+    reading_guide=(
+        "Excess kurtosis should fall toward 0 as the horizon grows if aggregational "
+        "Gaussianity holds; read the right side with care - the effective sample size "
+        "shrinks with the horizon."
+    ),
     display_name="Aggregation profile (kurtosis vs horizon)",
     stylized_fact="aggregational Gaussianity",
     minimum_observations_per_run=400,
@@ -120,6 +151,11 @@ _register(
 _register(
     plots.fig_leverage_kernel,
     figure_id="leverage_kernel", version="1",
+    reading_guide=(
+        "In equity-like data c(tau) is negative for tau>0 (bad returns precede high "
+        "volatility) and near 0 for tau<0. A symmetric kernel means the model has no "
+        "leverage-type asymmetry."
+    ),
     display_name="Leverage kernel c(tau)",
     stylized_fact="leverage effect",
     minimum_observations_per_run=300,
@@ -135,6 +171,12 @@ _register(
 _register(
     plots.fig_drift_variance,
     figure_id="drift_variance_diagnostic", version="1",
+    reading_guide=(
+        "Per-run drift should scatter near the model's intended drift "
+        "(often ~0); VR(q) "
+        "near 1 at all q means no strong mean reversion (<1) or trending (>1) in "
+        "returns."
+    ),
     display_name="Drift and variance-ratio diagnostic",
     stylized_fact="drift / return dependence (calibration sanity)",
     minimum_observations_per_run=200,
@@ -148,6 +190,12 @@ _register(
 _register(
     plots.fig_volume_volatility,
     figure_id="volume_volatility", version="1",
+    reading_guide=(
+        "A rising binned mean of |r| across volume bins (and positive "
+        "rank correlation) "
+        "is the volume-volatility relation; the raw scatter is dominated by dense low- "
+        "volume regions."
+    ),
     display_name="Volume-volatility relation",
     stylized_fact="volume/volatility correlation",
     required_columns=["return", "volume"],
@@ -166,6 +214,11 @@ _register(
 _register(
     None,
     figure_id="conditional_tails", version="1",
+    reading_guide=(
+        "Planned: compare the tail of raw returns to the tail of conditional- "
+        "volatility-standardized residuals; heavy residual tails mean heavy tails "
+        "beyond what volatility dynamics explain."
+    ),
     display_name="Conditional heavy tails (standardized residuals)",
     stylized_fact="conditional heavy tails",
     minimum_observations_per_run=1000,
@@ -182,6 +235,11 @@ _register(
 _register(
     None,
     figure_id="timescale_asymmetry", version="1",
+    reading_guide=(
+        "Planned: cross-correlation of coarse-grained and fine-grained volatility at "
+        "positive vs negative lags; asymmetry indicates information flowing from long "
+        "to short horizons."
+    ),
     display_name="Coarse-fine volatility lead-lag",
     stylized_fact="asymmetry in time scales",
     minimum_observations_per_run=2000,
@@ -197,6 +255,11 @@ _register(
 _register(
     None,
     figure_id="gain_loss_asymmetry", version="1",
+    reading_guide=(
+        "Planned: distribution of first-passage times to +theta vs -theta from each "
+        "starting point; in equity indices losses of a given size tend to be reached "
+        "faster than equal gains."
+    ),
     display_name="Gain/loss first-passage distribution",
     stylized_fact="gain/loss asymmetry",
     required_columns=["price"],
@@ -240,7 +303,8 @@ def _adequacy(spec: FigureSpec, ds: SimulationDataset
         return FigureResult(
             figure_id=spec.figure_id, version=spec.version,
             display_name=spec.display_name, stylized_fact=spec.stylized_fact,
-            status=status, related_metrics=spec.related_metrics,
+            reading_guide=spec.reading_guide, status=status,
+            related_metrics=spec.related_metrics,
             parameters=spec.parameters, note=note)
 
     missing = [c for c in spec.required_columns if not ds.has_column(c)]
@@ -294,6 +358,7 @@ def render_figures(ds: SimulationDataset, figure_refs: list[str],
                 figure_id=spec.figure_id, version=spec.version,
                 display_name=spec.display_name,
                 stylized_fact=spec.stylized_fact,
+                reading_guide=spec.reading_guide,
                 status=ExploratoryStatus.NOT_TESTED,
                 related_metrics=spec.related_metrics,
                 parameters=spec.parameters,
@@ -314,6 +379,7 @@ def render_figures(ds: SimulationDataset, figure_refs: list[str],
                 figure_id=spec.figure_id, version=spec.version,
                 display_name=spec.display_name,
                 stylized_fact=spec.stylized_fact,
+                reading_guide=spec.reading_guide,
                 status=ExploratoryStatus.INSUFFICIENT,
                 related_metrics=spec.related_metrics,
                 parameters=spec.parameters, caveats=gate_caveats,
@@ -328,6 +394,7 @@ def render_figures(ds: SimulationDataset, figure_refs: list[str],
         results.append(FigureResult(
             figure_id=spec.figure_id, version=spec.version,
             display_name=spec.display_name, stylized_fact=spec.stylized_fact,
+            reading_guide=spec.reading_guide,
             status=out.status, n_runs_used=out.n_runs_used,
             n_obs_used=out.n_obs_used,
             summary_values={k: v for k, v in out.summary_values.items()},

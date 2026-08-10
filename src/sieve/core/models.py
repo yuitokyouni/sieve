@@ -394,6 +394,7 @@ class FigureSpec(_Model):
     version: str
     display_name: str
     stylized_fact: str
+    reading_guide: str = ""          # what to look at in this figure
     supported_claims: list[str] = Field(default_factory=list)
     required_columns: list[str] = Field(default_factory=lambda: ["return"])
     supported_geometries: list[str] = Field(default_factory=lambda: [
@@ -416,6 +417,7 @@ class FigureResult(_Model):
     version: str
     display_name: str
     stylized_fact: str
+    reading_guide: str = ""
     status: ExploratoryStatus
     n_runs_used: int = 0
     n_obs_used: int = 0

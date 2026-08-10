@@ -80,6 +80,11 @@ def _metric_summary(ds: SimulationDataset, metric_ids: list[str]
     return out
 
 
+def _all_degenerate(ds: SimulationDataset) -> bool:
+    """True when no run has any variation (ACF/correlations undefined)."""
+    return all(r.columns["return"].std() <= 0 for r in ds.runs)
+
+
 def _standardized_pool(ds: SimulationDataset
                        ) -> tuple[np.ndarray, list[str], list[str]]:
     """Per-run standardized returns pooled for marginal views only."""
@@ -301,6 +306,8 @@ def _acf_figure(ds: SimulationDataset, transform, title: str, ylabel: str,
 
 
 def fig_return_acf(ds: SimulationDataset, params: dict) -> FigureOutput:
+    if _all_degenerate(ds):
+        return _insufficient("every run is constant; the ACF is undefined")
     max_lag = int(params.get("max_lag", 50))
     p, curves, lag_cap = _acf_figure(ds, lambda r: r,
                                      "autocorrelation of returns",
@@ -320,6 +327,8 @@ def fig_return_acf(ds: SimulationDataset, params: dict) -> FigureOutput:
 # -------------------------------------------------------- E. volatility ACF
 
 def fig_volatility_acf(ds: SimulationDataset, params: dict) -> FigureOutput:
+    if _all_degenerate(ds):
+        return _insufficient("every run is constant; the ACF is undefined")
     max_lag = int(params.get("max_lag", 100))
     p1, curves_abs, lag_cap = _acf_figure(
         ds, np.abs, "autocorrelation of |r|", "ACF(|r|)", max_lag)
@@ -419,6 +428,9 @@ def fig_aggregation_profile(ds: SimulationDataset, params: dict
 # ------------------------------------------------------ J. leverage kernel
 
 def fig_leverage_kernel(ds: SimulationDataset, params: dict) -> FigureOutput:
+    if _all_degenerate(ds):
+        return _insufficient("every run is constant; correlations are "
+                             "undefined")
     max_tau = int(params.get("max_tau", 20))
     metric_lags = int(params.get("metric_lags", 5))
     by_run = ds.returns_by_run()
@@ -465,6 +477,8 @@ def fig_leverage_kernel(ds: SimulationDataset, params: dict) -> FigureOutput:
 # ------------------------------------- drift / variance-ratio diagnostic
 
 def fig_drift_variance(ds: SimulationDataset, params: dict) -> FigureOutput:
+    if _all_degenerate(ds):
+        return _insufficient("every run is constant; drift/VR are undefined")
     qs = list(params.get("q_values", (2, 5, 10, 20, 40)))
     by_run = ds.returns_by_run()
     drift_vals = {rid: metric_registry.compute("drift@1", r)

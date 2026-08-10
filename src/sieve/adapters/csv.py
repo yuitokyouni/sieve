@@ -32,9 +32,18 @@ def read_returns(path: str | Path) -> tuple[np.ndarray, list[str]]:
         if header is None:
             raise InputError("empty CSV")
         cols = [c.strip().lower() for c in header]
+        if "run_id" in cols:
+            raise InputError(
+                "this CSV has a run_id column (multi-run research input). "
+                "`sieve test` treats its input as ONE series and will not "
+                "concatenate runs; use `sieve inspect` for ensembles "
+                "(confirmatory multi-run inference vs the shipped window "
+                "reference is not yet supported — see "
+                "docs/research-workbench-migration.md)")
         if "return" not in cols:
             raise InputError("returns.csv must have a 'return' column "
-                             f"(got {header})")
+                             f"(got {header}). If you only have prices, use "
+                             "`sieve inspect --derive-return log|simple|diff`")
         ri = cols.index("return")
         ti = cols.index("timestamp") if "timestamp" in cols else None
         for ln, row in enumerate(reader, start=2):
@@ -57,6 +66,12 @@ def load_input(
         input_path: str | Path
 ) -> tuple[np.ndarray, ModelManifest, DatasetManifest]:
     input_path = Path(input_path)
+    if input_path.is_dir() and not (input_path / "returns.csv").exists() \
+            and (input_path / "runs").is_dir():
+        raise InputError(
+            f"{input_path} is a multi-run research input (runs/ directory). "
+            "`sieve test` evaluates one long series against the window "
+            "reference; use `sieve inspect` for ensembles")
     csv_path = (input_path / "returns.csv" if input_path.is_dir()
                 else input_path)
     r, _ = read_returns(csv_path)

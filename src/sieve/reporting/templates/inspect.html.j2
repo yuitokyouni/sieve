@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ product }} exploratory inspection — {{ b.model.display_name }}</title>
+<style>
+  :root { --ink:#14181f; --muted:#5a6577; --rule:#d5dce4; --panel:#f5f7fa;
+          --obs:#1f5e99; --na:#5a6577; --insuf:#a06a00; --plan:#5a6577;
+          --expl:#7a4a9e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.7 system-ui, sans-serif; color:var(--ink);
+         background:#fff; }
+  .wrap { max-width: 72rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.1rem; border-bottom: 2px solid var(--ink);
+       padding-bottom:.3rem; margin: 2.2rem 0 .8rem; }
+  .muted { color: var(--muted); }
+  .banner { background:#f3ecf9; border:1px solid #d9c8ea;
+            border-left:5px solid var(--expl); padding:.7rem 1rem;
+            margin:1rem 0; }
+  .banner b { color:var(--expl); letter-spacing:.04em; }
+  .claim { background: var(--panel); border-left: 4px solid var(--ink);
+           padding: .8rem 1rem; margin: 1rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .92em; }
+  th, td { text-align: left; padding: .45rem .6rem;
+           border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .num { font-variant-numeric: tabular-nums; text-align: right; }
+  .st { font-weight: 700; font-size: .8em; letter-spacing: .04em;
+        padding:.1em .5em; border-radius:3px; border:1px solid var(--rule);
+        white-space:nowrap; }
+  .st.OBSERVED { color: var(--obs); border-color:#bcd3e8; background:#eef4fa; }
+  .st.INSUFFICIENT { color: var(--insuf); border-color:#e5d3ab;
+                     background:#faf4e6; }
+  .st.NOT_APPLICABLE { color: var(--na); background:var(--panel); }
+  .st.NOT_TESTED { color: var(--plan); background:var(--panel);
+                   border-style:dashed; }
+  .card { border:1px solid var(--rule); border-radius:6px; margin:1.2rem 0;
+          overflow:hidden; }
+  .card-head { display:flex; flex-wrap:wrap; gap:.6rem; align-items:baseline;
+               padding:.7rem 1rem; background:var(--panel);
+               border-bottom:1px solid var(--rule); }
+  .card-head h3 { margin:0; font-size:1em; }
+  .card-head .fact { color:var(--muted); font-size:.85em; }
+  .card-body { padding: .8rem 1rem; }
+  .figwrap { overflow-x:auto; margin:.4rem 0 .8rem;
+             border:1px solid var(--rule); border-radius:4px;
+             background:#fff; }
+  .figwrap svg { display:block; max-width:100%; height:auto; }
+  .kv { display:grid; grid-template-columns: max-content 1fr;
+        gap:.15rem .8rem; font-size:.88em; margin:.5rem 0; }
+  .kv dt { color:var(--muted); }
+  .kv dd { margin:0; }
+  ul { margin:.3rem 0 .6rem 1.2rem; padding:0; }
+  li { margin-bottom:.25rem; }
+  .caveats { font-size:.86em; color:var(--muted); }
+  footer { margin-top:3rem; border-top:1px solid var(--rule);
+           padding-top:1rem; font-size:.85em; color:var(--muted); }
+  code { background: var(--panel); padding:0 .3em; border-radius:3px;
+         font-size:.9em; overflow-wrap:anywhere; }
+  .defs { font-size:.88em; }
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>{{ b.model.display_name }} <span class="muted">v{{ b.model.model_version }}</span></h1>
+<div class="muted">{{ product }} exploratory inspection · suite {{ b.suite_ref }}
+· bundle <code>{{ b.bundle_hash[:16] }}…</code></div>
+
+<div class="banner"><b>EXPLORATORY REPORT.</b> This inspection makes
+<em>no</em> PASS/FAIL decision and performs <em>no</em> reference
+comparison. Figures and descriptive statistics support visual exploration
+only; confirmatory claims require <code>sieve test</code> against a
+reference suite with prespecified inference. No aggregate score exists
+anywhere in this report.</div>
+
+<h2>1 · Run overview</h2>
+<table>
+  <tr><th>Model</th><td>{{ b.model.display_name }} v{{ b.model.model_version }}
+      ({{ b.model.model_id }}){% if b.model.model_family %} ·
+      {{ b.model.model_family }}{% endif %}</td></tr>
+  <tr><th>Input</th><td><code>{{ b.run_manifest.input_path }}</code>
+      · content hash <code>{{ b.dataset.content_hash[:16] }}…</code></td></tr>
+  <tr><th>Suite</th><td>{{ b.suite_ref }} ·
+      hash <code>{{ b.suite_hash[:16] }}…</code>
+      (exploratory; ships no reference data)</td></tr>
+  <tr><th>Command</th><td><code>{{ b.run_manifest.command }}</code></td></tr>
+  <tr><th>Master seed</th><td>{{ b.run_manifest.master_seed }}</td></tr>
+  {% if b.model.parameters %}
+  <tr><th>Declared parameters</th><td><code>{{ b.model.parameters }}</code></td></tr>
+  {% endif %}
+</table>
+
+<h2>2 · Input geometry and preprocessing</h2>
+<table>
+  <tr><th>Sampling geometry</th><td><b>{{ b.geometry.geometry }}</b>
+      <span class="muted">({{ b.geometry.geometry_source }})</span></td></tr>
+  <tr><th>Time basis</th><td>{{ b.geometry.time_basis }} — no calendar or
+      frequency was inferred</td></tr>
+  <tr><th>Runs</th><td>{{ b.geometry.n_runs }} (treated as independent
+      sampling units; never concatenated)</td></tr>
+  <tr><th>Observations</th><td>{{ b.geometry.n_obs_total }} total after
+      preprocessing</td></tr>
+  <tr><th>Observables</th><td>{{ b.geometry.columns|join(", ") }}</td></tr>
+  {% if b.dataset.transforms %}
+  <tr><th>Recorded transforms</th><td>
+    {% for t in b.dataset.transforms %}
+      <code>{{ t.name }}</code> {{ t.parameters }}<br>
+    {% endfor %}</td></tr>
+  {% endif %}
+</table>
+<table style="margin-top:.8rem">
+  <tr><th>run_id</th><th>seed</th><th class="num">rows in</th>
+      <th class="num">burn-in dropped</th><th class="num">rows used</th>
+      <th>spacing</th></tr>
+  {% for r in b.geometry.runs %}
+  <tr>
+    <td><code>{{ r.run_id }}</code></td>
+    <td>{{ r.seed if r.seed is not none else "—" }}</td>
+    <td class="num">{{ r.n_obs_raw }}</td>
+    <td class="num">{{ r.n_burned }}</td>
+    <td class="num">{{ r.n_obs }}</td>
+    <td>{{ "irregular" if r.irregular_spacing else "regular" }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<h2>3 · Scope of this inspection</h2>
+<div class="claim">
+  Exploratory stylized-fact diagnostics of the input dataset. This scopes
+  what was <em>looked at</em>, not what the model proves.
+</div>
+<div class="defs">
+Status vocabulary (deliberately weaker than PASS/FAIL):
+<ul>
+  <li><span class="st OBSERVED">OBSERVED</span> — the diagnostic was computed
+      and rendered from adequate data. It does <b>not</b> mean the stylized
+      fact "holds"; reading the figure is your job.</li>
+  <li><span class="st INSUFFICIENT">INSUFFICIENT</span> — data volume below
+      the figure's declared minimum; nothing was fabricated to fill the gap.</li>
+  <li><span class="st NOT_APPLICABLE">NOT_APPLICABLE</span> — a required
+      observable or geometry is absent from the input.</li>
+  <li><span class="st NOT_TESTED">NOT_TESTED</span> — the diagnostic is
+      registered as a roadmap item and not implemented in this version.</li>
+</ul>
+</div>
+
+<h2>4 · Visual evidence atlas</h2>
+<p class="muted">Each card is one diagnostic: what it shows, the data it
+used, the scalar metrics it corresponds to, and its known pitfalls. Figures
+are evidence for your eyes — they never decide anything, and scalar
+summaries never replace the curve.</p>
+
+{% for f in b.figures %}
+<div class="card" id="fig-{{ f.figure_id }}">
+  <div class="card-head">
+    <h3>{{ f.display_name }}</h3>
+    <span class="fact">{{ f.stylized_fact }}</span>
+    <span class="st {{ f.status.value }}">{{ f.status.value }}</span>
+    <span class="muted" style="font-size:.8em">{{ f.figure_id }}@{{ f.version }}</span>
+  </div>
+  <div class="card-body">
+    {% if svgs.get(f.figure_id) %}
+    <div class="figwrap">{{ svgs[f.figure_id]|safe }}</div>
+    {% elif f.note %}
+    <p class="muted"><em>{{ f.note }}</em></p>
+    {% endif %}
+    {% if f.reading_guide %}
+    <p><b>What to look at.</b> {{ f.reading_guide }}</p>
+    {% endif %}
+    <dl class="kv">
+      {% if f.status.value == "OBSERVED" %}
+      <dt>Data used</dt><dd>{{ f.n_runs_used }} run(s),
+          {{ f.n_obs_used }} observations</dd>
+      {% endif %}
+      {% if f.related_metrics %}
+      <dt>Related metrics</dt><dd>{{ f.related_metrics|join(", ") }}</dd>
+      {% endif %}
+      {% if f.summary_values %}
+      <dt>Scalar summary</dt><dd>
+        {% for k, v in f.summary_values.items() %}
+          <code>{{ k }}</code> = {{ "%.4g"|format(v) if v is not none else "n/a" }}{{ " · " if not loop.last }}
+        {% endfor %}</dd>
+      {% endif %}
+      <dt>Reference comparator</dt><dd>none — exploratory suite ships no
+          reference distributions</dd>
+      {% if f.parameters %}
+      <dt>Parameters</dt><dd><code>{{ f.parameters }}</code></dd>
+      {% endif %}
+    </dl>
+    {% if f.caveats %}
+    <div class="caveats"><b>Caveats.</b>
+      <ul>{% for c in f.caveats %}<li>{{ c }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+
+<h2>5 · Per-metric numerical results</h2>
+<p class="muted">Per-run values of the suite's scalar metrics — the same
+registered functions the confirmatory workflow uses. Raw values live in
+<code>observations.parquet</code>.</p>
+{% set runs = b.geometry.runs %}
+{% if runs|length <= 8 %}
+<div style="overflow-x:auto">
+<table>
+  <tr><th>metric</th>{% for r in runs %}<th class="num"><code>{{ r.run_id }}</code></th>{% endfor %}</tr>
+  {% for mid, per_run in metric_table %}
+  <tr><td><code>{{ mid }}</code></td>
+    {% for r in runs %}
+      {% set ob = per_run.get(r.run_id) %}
+      <td class="num">{% if ob and ob.value is not none %}{{ "%.4g"|format(ob.value) }}{% elif ob %}<span class="st {{ ob.status.value }}" title="{{ ob.note }}">{{ ob.status.value }}</span>{% else %}—{% endif %}</td>
+    {% endfor %}
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}
+<table>
+  <tr><th>metric</th><th class="num">min</th><th class="num">q25</th>
+      <th class="num">median</th><th class="num">q75</th>
+      <th class="num">max</th><th class="num">runs valued</th></tr>
+  {% for mid, stats in metric_stats %}
+  <tr><td><code>{{ mid }}</code></td>
+    {% if stats %}
+    <td class="num">{{ "%.4g"|format(stats.min) }}</td>
+    <td class="num">{{ "%.4g"|format(stats.q25) }}</td>
+    <td class="num">{{ "%.4g"|format(stats.median) }}</td>
+    <td class="num">{{ "%.4g"|format(stats.q75) }}</td>
+    <td class="num">{{ "%.4g"|format(stats.max) }}</td>
+    <td class="num">{{ stats.n }}</td>
+    {% else %}
+    <td colspan="6" class="muted">no valued runs</td>
+    {% endif %}
+  </tr>
+  {% endfor %}
+</table>
+<p class="muted">More than 8 runs: distribution summaries shown; every
+per-run value is in <code>observations.parquet</code>.</p>
+{% endif %}
+
+<h2>6 · What was not observed, and why</h2>
+{% set gaps = b.figures|selectattr("status.value", "in",
+              ["NOT_APPLICABLE", "NOT_TESTED", "INSUFFICIENT"])|list %}
+{% if gaps %}
+<table>
+  <tr><th>diagnostic</th><th>status</th><th>reason</th></tr>
+  {% for f in gaps %}
+  <tr><td>{{ f.display_name }}</td>
+      <td><span class="st {{ f.status.value }}">{{ f.status.value }}</span></td>
+      <td class="muted">{{ f.note or "see card above" }}</td></tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="muted">Every registered diagnostic was rendered from adequate
+data. That is a statement about data adequacy, not about model quality.</p>
+{% endif %}
+<p class="muted">Not observable by design in exploratory mode: reference
+agreement, confirmatory separation, regime response, intervention validity.</p>
+
+<h2>7 · Sensitivity and estimator warnings</h2>
+<ul class="caveats">
+  <li>Hill tail indices depend on the tail fraction k (recorded ~0.9 IQR
+      swing across 2.5–10%); the k region is marked on the CCDF figure.</li>
+  <li>ACF uncertainty bands assume iid data and understate uncertainty under
+      volatility clustering.</li>
+  <li>Aggregation-profile points at large horizons rest on few aggregated
+      observations; effective n is printed on the figure.</li>
+  <li>Scalar metrics can miss anomalies a figure shows — and a figure can
+      suggest structure a formal test would not support. Neither substitutes
+      for the other.</li>
+</ul>
+
+<h2>8 · Limitations</h2>
+<ul>
+  {% for lim in b.limitations %}<li>{{ lim }}</li>{% endfor %}
+</ul>
+
+<h2>9 · Provenance and reproducibility</h2>
+<table>
+  <tr><th>Bundle seal</th><td><code>{{ b.bundle_hash }}</code>
+      — deterministic scientific seal (volatile IDs excluded)</td></tr>
+  <tr><th>Input hash</th><td><code>{{ b.dataset.content_hash }}</code></td></tr>
+  <tr><th>Suite hash</th><td><code>{{ b.suite_hash }}</code></td></tr>
+  <tr><th>Sieve version</th><td>{{ b.run_manifest.sieve_version }}</td></tr>
+  <tr><th>Environment</th><td><code>{{ b.run_manifest.environment }}</code></td></tr>
+  <tr><th>Verify</th><td><code>sieve verify &lt;run-dir&gt;</code> recomputes
+      the seal and every artifact hash, including each figure SVG</td></tr>
+</table>
+
+<footer>{{ footer }}<br>
+Exploratory inspection — no aggregate score exists, and none can be derived
+from this report. Figures are sealed evidence artifacts; the SVG files in
+<code>figures/</code> are covered by <code>bundle.sha256</code>.</footer>
+</div></body>
+</html>
