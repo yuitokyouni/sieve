@@ -42,7 +42,7 @@
 
 <h1>Example market scenario generator <span class="muted">v2.4.0</span></h1>
 <div class="muted">Sieve evaluation · suite financial-daily@1.0.0
-· bundle <code>454c49e1a4f5d66e…</code></div>
+· bundle <code>a956ccd87b4365f4…</code></div>
 
 <h2>1 · Claim under evaluation</h2>
 <div class="claim">
@@ -57,7 +57,7 @@ model is “true”, and no aggregate score exists.</p>
 <table>
   <tr><th>Input</th><td><code>examples/model_update/v2</code>
       · sha256 <code>b99872a25a808b7d…</code></td></tr>
-  <tr><th>Reference</th><td>Six major equity indices (S&P 500, FTSE 100, DAX, Nikkei 225, Hang Seng, EURO STOXX 50), daily log returns, unit-sd scaled per index; the 124 derived windows span July 2001 – June 2026 (per-window dates ship in reference_stats.json). — frozen derived
+  <tr><th>Reference</th><td>Six major equity indices (S&amp;P 500, FTSE 100, DAX, Nikkei 225, Hang Seng, EURO STOXX 50), daily log returns, unit-sd scaled per index; the 124 derived windows span July 2001 – June 2026 (per-window dates ship in reference_stats.json). — frozen derived
       window statistics (124 windows,
       calendar-blocked); raw reference series are not shipped</td></tr>
   <tr><th>Windows</th><td>length 1000,
@@ -142,11 +142,11 @@ about the others; NOT_TESTED means exactly that.</p>
     <h3>Excess kurtosis diverges from the empirical reference <span class="badge">HIGH</span>
         <span class="badge">DIVERGES_EXCESS_KURTOSIS</span></h3>
     <div><b>Observation.</b> Across 15 non-overlapping simulated windows vs 124 reference windows, KS=0.871.</div>
-    <div><b>Interpretation.</b> The simulated distribution of 'Excess kurtosis' is separated from the empirical reference (KS=0.87, adjusted p=0.003998 at the calibrated line). Note this metric also fails to separate the reference from block_bootstrap, garch_t; treat its pass/fail as one dimension of evidence, not a verdict.</div>
-    <div><b>Impact on claim.</b> Weakens support for claim 'descriptive-market-dynamics' on the dimension 'marginal_distribution'. Other dimensions are unaffected by this finding.</div>
+    <div><b>Interpretation.</b> The simulated distribution of &#39;Excess kurtosis&#39; is separated from the empirical reference (KS=0.87, adjusted p=0.003998 at the calibrated line). Note this metric also fails to separate the reference from block_bootstrap, garch_t; treat its pass/fail as one dimension of evidence, not a verdict.</div>
+    <div><b>Impact on claim.</b> Weakens support for claim &#39;descriptive-market-dynamics&#39; on the dimension &#39;marginal_distribution&#39;. Other dimensions are unaffected by this finding.</div>
     <div class="muted">Evidence: excess_kurtosis::vs-reference · observations.parquet · artifacts/baseline_context.json</div>
     <div><b>Questions for the author.</b>
-      <ul><li>Did we extract the model output correctly (frequency, units, log vs simple returns)?</li><li>Is matching the empirical distribution of 'Excess kurtosis' within the intended use of the model?</li><li>Is there a configuration of the model under which this dimension is expected to match, and should we evaluate that configuration instead?</li></ul>
+      <ul><li>Did we extract the model output correctly (frequency, units, log vs simple returns)?</li><li>Is matching the empirical distribution of &#39;Excess kurtosis&#39; within the intended use of the model?</li><li>Is there a configuration of the model under which this dimension is expected to match, and should we evaluate that configuration instead?</li></ul>
     </div>
   </div>
   
@@ -154,11 +154,11 @@ about the others; NOT_TESTED means exactly that.</p>
     <h3>Hill tail index (left) diverges from the empirical reference <span class="badge">HIGH</span>
         <span class="badge">DIVERGES_HILL_LEFT</span></h3>
     <div><b>Observation.</b> Across 15 non-overlapping simulated windows vs 124 reference windows, KS=0.655.</div>
-    <div><b>Interpretation.</b> The simulated distribution of 'Hill tail index (left)' is separated from the empirical reference (KS=0.65, adjusted p=0.003998 at the calibrated line). Note this metric also fails to separate the reference from block_bootstrap, garch_t; treat its pass/fail as one dimension of evidence, not a verdict.</div>
-    <div><b>Impact on claim.</b> Weakens support for claim 'descriptive-market-dynamics' on the dimension 'tail_behavior'. Other dimensions are unaffected by this finding.</div>
+    <div><b>Interpretation.</b> The simulated distribution of &#39;Hill tail index (left)&#39; is separated from the empirical reference (KS=0.65, adjusted p=0.003998 at the calibrated line). Note this metric also fails to separate the reference from block_bootstrap, garch_t; treat its pass/fail as one dimension of evidence, not a verdict.</div>
+    <div><b>Impact on claim.</b> Weakens support for claim &#39;descriptive-market-dynamics&#39; on the dimension &#39;tail_behavior&#39;. Other dimensions are unaffected by this finding.</div>
     <div class="muted">Evidence: hill_left::vs-reference · observations.parquet · artifacts/baseline_context.json</div>
     <div><b>Questions for the author.</b>
-      <ul><li>Did we extract the model output correctly (frequency, units, log vs simple returns)?</li><li>Is matching the empirical distribution of 'Hill tail index (left)' within the intended use of the model?</li><li>Is there a configuration of the model under which this dimension is expected to match, and should we evaluate that configuration instead?</li></ul>
+      <ul><li>Did we extract the model output correctly (frequency, units, log vs simple returns)?</li><li>Is matching the empirical distribution of &#39;Hill tail index (left)&#39; within the intended use of the model?</li><li>Is there a configuration of the model under which this dimension is expected to match, and should we evaluate that configuration instead?</li></ul>
     </div>
   </div>
   
@@ -166,11 +166,11 @@ about the others; NOT_TESTED means exactly that.</p>
     <h3>|r| autocorrelation, lag 20 diverges from the empirical reference <span class="badge">HIGH</span>
         <span class="badge">DIVERGES_ACF_ABS_20</span></h3>
     <div><b>Observation.</b> Across 15 non-overlapping simulated windows vs 124 reference windows, KS=0.685.</div>
-    <div><b>Interpretation.</b> The simulated distribution of '|r| autocorrelation, lag 20' is separated from the empirical reference (KS=0.69, adjusted p=0.003998 at the calibrated line). Note this metric also fails to separate the reference from garch_norm, garch_t; treat its pass/fail as one dimension of evidence, not a verdict.</div>
-    <div><b>Impact on claim.</b> Weakens support for claim 'descriptive-market-dynamics' on the dimension 'volatility_dynamics'. Other dimensions are unaffected by this finding.</div>
+    <div><b>Interpretation.</b> The simulated distribution of &#39;|r| autocorrelation, lag 20&#39; is separated from the empirical reference (KS=0.69, adjusted p=0.003998 at the calibrated line). Note this metric also fails to separate the reference from garch_norm, garch_t; treat its pass/fail as one dimension of evidence, not a verdict.</div>
+    <div><b>Impact on claim.</b> Weakens support for claim &#39;descriptive-market-dynamics&#39; on the dimension &#39;volatility_dynamics&#39;. Other dimensions are unaffected by this finding.</div>
     <div class="muted">Evidence: acf_abs_20::vs-reference · observations.parquet · artifacts/baseline_context.json</div>
     <div><b>Questions for the author.</b>
-      <ul><li>Did we extract the model output correctly (frequency, units, log vs simple returns)?</li><li>Is matching the empirical distribution of '|r| autocorrelation, lag 20' within the intended use of the model?</li><li>Is there a configuration of the model under which this dimension is expected to match, and should we evaluate that configuration instead?</li></ul>
+      <ul><li>Did we extract the model output correctly (frequency, units, log vs simple returns)?</li><li>Is matching the empirical distribution of &#39;|r| autocorrelation, lag 20&#39; within the intended use of the model?</li><li>Is there a configuration of the model under which this dimension is expected to match, and should we evaluate that configuration instead?</li></ul>
     </div>
   </div>
   
@@ -178,11 +178,11 @@ about the others; NOT_TESTED means exactly that.</p>
     <h3>Leverage correlation diverges from the empirical reference <span class="badge">HIGH</span>
         <span class="badge">DIVERGES_LEVERAGE</span></h3>
     <div><b>Observation.</b> Across 15 non-overlapping simulated windows vs 124 reference windows, KS=0.984.</div>
-    <div><b>Interpretation.</b> The simulated distribution of 'Leverage correlation' is separated from the empirical reference (KS=0.98, adjusted p=0.003998 at the calibrated line). Note this metric also fails to separate the reference from block_bootstrap; treat its pass/fail as one dimension of evidence, not a verdict.</div>
-    <div><b>Impact on claim.</b> Weakens support for claim 'descriptive-market-dynamics' on the dimension 'leverage_asymmetry'. Other dimensions are unaffected by this finding.</div>
+    <div><b>Interpretation.</b> The simulated distribution of &#39;Leverage correlation&#39; is separated from the empirical reference (KS=0.98, adjusted p=0.003998 at the calibrated line). Note this metric also fails to separate the reference from block_bootstrap; treat its pass/fail as one dimension of evidence, not a verdict.</div>
+    <div><b>Impact on claim.</b> Weakens support for claim &#39;descriptive-market-dynamics&#39; on the dimension &#39;leverage_asymmetry&#39;. Other dimensions are unaffected by this finding.</div>
     <div class="muted">Evidence: leverage::vs-reference · observations.parquet · artifacts/baseline_context.json</div>
     <div><b>Questions for the author.</b>
-      <ul><li>Did we extract the model output correctly (frequency, units, log vs simple returns)?</li><li>Is matching the empirical distribution of 'Leverage correlation' within the intended use of the model?</li><li>Is there a configuration of the model under which this dimension is expected to match, and should we evaluate that configuration instead?</li></ul>
+      <ul><li>Did we extract the model output correctly (frequency, units, log vs simple returns)?</li><li>Is matching the empirical distribution of &#39;Leverage correlation&#39; within the intended use of the model?</li><li>Is there a configuration of the model under which this dimension is expected to match, and should we evaluate that configuration instead?</li></ul>
     </div>
   </div>
   
@@ -295,15 +295,15 @@ about the others; NOT_TESTED means exactly that.</p>
 
 <h2>7 · Provenance</h2>
 <table>
-  <tr><th>Run</th><td><code>468702c76312</code>
-      · sieve 0.3.0</td></tr>
+  <tr><th>Run</th><td><code>8fce2af4b30b</code>
+      · sieve 0.4.0</td></tr>
   <tr><th>Command</th><td><code>sieve test examples/model_update/v2 --suite financial-daily@1.0 --claim descriptive-market-dynamics</code></td></tr>
   <tr><th>Master seed</th><td><code>20260802</code>
       (4 named children recorded)</td></tr>
   <tr><th>Suite hash</th><td><code>343042f8ceedf18a…</code></td></tr>
   <tr><th>Model source</th><td>5ca8dc763fbb09a0f53e45ded47c2852af62f562
       · https://github.com/yuitokyouni/sieve/tree/main/examples/model_update</td></tr>
-  <tr><th>Environment</th><td class="muted">python 3.11.15 · platform Linux-6.18.5-fc-v20-x86_64-with-glibc2.39 · numpy 2.4.6 · pydantic 2.13.4 · scipy 1.17.1 · polars 1.43.2 · </td></tr>
+  <tr><th>Environment</th><td class="muted">numpy 2.4.6 · platform Linux-6.18.5-fc-v20-x86_64-with-glibc2.39 · polars 1.43.2 · pydantic 2.13.4 · python 3.11.15 · scipy 1.17.1 · </td></tr>
 </table>
 
 <footer>Sieve — every status resolves to test results, versions and caveats. No aggregate score exists.<br>

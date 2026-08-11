@@ -84,6 +84,16 @@ class LoadedSuite:
             suite_hash=body)
         self._cfg = cfg
 
+    @property
+    def figures(self) -> list[str]:
+        """Figure refs (``figure_id@major``) declared by the suite.
+
+        Kept out of :class:`TestSuiteManifest` deliberately: that model is
+        serialized inside existing sealed evidence bundles and is frozen.
+        The raw YAML (and therefore ``suite_hash``) still covers this list.
+        """
+        return list(self._cfg.get("figures", []))
+
     # ---- shipped data -----------------------------------------------------
     def reference_stats(self) -> dict:
         return json.loads((self.path / "reference_stats.json").read_text())

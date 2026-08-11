@@ -1,0 +1,122 @@
+{
+  "$defs": {
+    "ExploratoryStatus": {
+      "description": "Status of one exploratory diagnostic (``sieve inspect``).\n\nDeliberately weaker vocabulary than :class:`Status` \u2014 inspect mode never\nclaims PASS/FAIL, and OBSERVED asserts only that the diagnostic was\ncomputed and rendered from adequate data, **not** that a stylized fact\n\"holds\". Reading the figure is the user's job; confirmatory decisions\nbelong to ``sieve test``.",
+      "enum": [
+        "OBSERVED",
+        "INSUFFICIENT",
+        "NOT_APPLICABLE",
+        "NOT_TESTED"
+      ],
+      "title": "ExploratoryStatus",
+      "type": "string"
+    },
+    "JsonValue": {}
+  },
+  "additionalProperties": false,
+  "description": "Outcome of rendering one registered figure for one dataset.",
+  "properties": {
+    "artifact_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Artifact Path"
+    },
+    "caveats": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Caveats",
+      "type": "array"
+    },
+    "display_name": {
+      "title": "Display Name",
+      "type": "string"
+    },
+    "figure_id": {
+      "title": "Figure Id",
+      "type": "string"
+    },
+    "n_obs_used": {
+      "default": 0,
+      "title": "N Obs Used",
+      "type": "integer"
+    },
+    "n_runs_used": {
+      "default": 0,
+      "title": "N Runs Used",
+      "type": "integer"
+    },
+    "note": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Note"
+    },
+    "parameters": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Parameters",
+      "type": "object"
+    },
+    "reading_guide": {
+      "default": "",
+      "title": "Reading Guide",
+      "type": "string"
+    },
+    "related_metrics": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Related Metrics",
+      "type": "array"
+    },
+    "status": {
+      "$ref": "#/$defs/ExploratoryStatus"
+    },
+    "stylized_fact": {
+      "title": "Stylized Fact",
+      "type": "string"
+    },
+    "summary_values": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Summary Values",
+      "type": "object"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "figure_id",
+    "version",
+    "display_name",
+    "stylized_fact",
+    "status"
+  ],
+  "title": "FigureResult",
+  "type": "object"
+}

@@ -1,0 +1,98 @@
+{
+  "$defs": {
+    "RunSummary": {
+      "additionalProperties": false,
+      "description": "Per-run accounting: what went in, what burn-in removed.",
+      "properties": {
+        "irregular_spacing": {
+          "default": false,
+          "title": "Irregular Spacing",
+          "type": "boolean"
+        },
+        "n_burned": {
+          "default": 0,
+          "title": "N Burned",
+          "type": "integer"
+        },
+        "n_obs": {
+          "title": "N Obs",
+          "type": "integer"
+        },
+        "n_obs_raw": {
+          "title": "N Obs Raw",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seed"
+        }
+      },
+      "required": [
+        "run_id",
+        "n_obs_raw",
+        "n_obs"
+      ],
+      "title": "RunSummary",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Sampling geometry of the input, and where the label came from.",
+  "properties": {
+    "columns": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Columns",
+      "type": "array"
+    },
+    "geometry": {
+      "title": "Geometry",
+      "type": "string"
+    },
+    "geometry_source": {
+      "title": "Geometry Source",
+      "type": "string"
+    },
+    "n_obs_total": {
+      "title": "N Obs Total",
+      "type": "integer"
+    },
+    "n_runs": {
+      "title": "N Runs",
+      "type": "integer"
+    },
+    "runs": {
+      "items": {
+        "$ref": "#/$defs/RunSummary"
+      },
+      "title": "Runs",
+      "type": "array"
+    },
+    "time_basis": {
+      "title": "Time Basis",
+      "type": "string"
+    }
+  },
+  "required": [
+    "geometry",
+    "geometry_source",
+    "time_basis",
+    "n_runs",
+    "n_obs_total"
+  ],
+  "title": "GeometrySummary",
+  "type": "object"
+}

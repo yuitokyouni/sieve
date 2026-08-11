@@ -31,7 +31,8 @@ def _reject_non_finite(obj: Any, path: str = "$") -> None:
             _reject_non_finite(v, f"{path}[{i}]")
 
 
-def to_jsonable(bundle: EvidenceBundle) -> dict:
+def to_jsonable(bundle) -> dict:
+    """Any pydantic artifact → plain JSON-able dict."""
     return json.loads(bundle.model_dump_json())
 
 
@@ -58,5 +59,11 @@ def null_out_excluded(data: dict, paths=HASH_EXCLUDED_PATHS) -> dict:
     return out
 
 
-def hashable_bytes(bundle: EvidenceBundle) -> bytes:
-    return canonical_bytes(null_out_excluded(to_jsonable(bundle)))
+def hashable_bytes(bundle: EvidenceBundle,
+                   paths=HASH_EXCLUDED_PATHS) -> bytes:
+    """Canonical bytes with the artifact's volatile fields nulled.
+
+    ``paths`` defaults to the evidence-bundle exclusion set; other sealed
+    artifacts (e.g. ``InspectBundle``) pass their own exclusion tuple.
+    """
+    return canonical_bytes(null_out_excluded(to_jsonable(bundle), paths))

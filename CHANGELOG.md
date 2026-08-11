@@ -1,5 +1,69 @@
 # Changelog
 
+## 0.4.0 — 2026-08-10
+
+Direction change: from an outward-facing ERM/ESG-framed product to a
+**research-first simulation validation workbench** for financial ABMs and
+collaborative research, without breaking the scientific/audit layer. Full
+audit and design rationale: `docs/research-workbench-migration.md`.
+
+- **Generalized research inputs.** `SimulationDataset`: multi-run
+  (`run_id` long format, directory-of-runs with manifest), step- or
+  timestamp-based time, price-only inputs with *explicit* return
+  derivation (`log`/`simple`/`diff` — never implicit), burn-in
+  (steps/fraction/per-run, dropped counts recorded), extra observables
+  (`volume`, user-defined), declared sampling geometry
+  (`single_long_series` / `multi_run_ensemble` / `multi_market_panel` /
+  `paired_runs` / `short_exploratory_series`). Python API:
+  `sieve.from_arrays` / `from_runs` / `from_dataframe`. Runs are never
+  concatenated; derived returns never cross run boundaries; nothing is
+  resampled, interpolated or frequency-inferred silently.
+- **`sieve inspect` — exploratory mode.** Works with no reference data,
+  on one short run or an ensemble. Per-run metric observations gated by
+  each metric's new declared `MetricRequirements`; figure statuses are
+  `OBSERVED` / `INSUFFICIENT` / `NOT_APPLICABLE` / `NOT_TESTED` — no
+  PASS/FAIL exists in this mode, and constant/NaN inputs degrade
+  individual diagnostics instead of aborting the run.
+- **Figure registry + evidence atlas.** Versioned `FigureSpec` registry
+  mirroring the metric registry. Nine deterministic, dependency-free SVG
+  diagnostics (return path with min-max decimation, marginal distribution
+  vs Gaussian, tail CCDF with Hill overlay and marked k region, return
+  ACF, |r|/r² ACF with log-log view, aggregation profile κ(Δt), leverage
+  kernel c(τ) with the scalar metric's range shaded, drift/VR panel,
+  volume-volatility relation), sharing the metric computation code
+  (bit-consistency tested). Three registered `NOT_TESTED` roadmap figures
+  (conditional tails, time-scale asymmetry, gain/loss first-passage) with
+  documented prespecification requirements
+  (`docs/stylized-facts-atlas.md`).
+- **Sealed exploratory bundles.** `InspectBundle` with the same two-layer
+  seal (deterministic `bundle_hash` + `bundle.sha256`), figure SVGs
+  included in the artifact index; `sieve verify` handles both bundle
+  kinds. Existing `EvidenceBundle` models, serialization and hashes are
+  untouched — old bundles verify unchanged, and `financial-daily@1.0.0`
+  is not modified.
+- **New exploratory suite `financial-stylized-facts@0.1.0`** (default for
+  `inspect`): the 8 existing metrics + 12 registered figures, no
+  reference, no inference — declared as such in the suite manifest.
+- **New example `examples/abm_ensemble`**: a 6-seed mood-herding ABM
+  emitting `step,price,volume` (return derivation and burn-in exercised
+  via the manifest).
+- **Guard rails on the legacy path.** `sieve test` now refuses multi-run
+  inputs with guidance to `inspect` (the legacy reader would previously
+  have concatenated long-format runs into one series). Confirmatory
+  ensemble inference vs the shipped window reference is deliberately
+  deferred, not faked — see the migration doc.
+- **Frozen examples refreshed for v0.4.0.** The seal pins the sieve
+  version, so `docs/example-run` and `docs/example-update` are
+  regenerated under the pinned environment: statuses, KS values and
+  verdicts are byte-identical to v0.3.0; only version-bearing fields and
+  seals changed (previous example seal `43b88e5f166bba0f…`, new
+  `187519f103a28696…`). Schema exports are additive: `MetricSpec` gains
+  optional `requirements`; new schemas for `InspectBundle`, `FigureSpec`,
+  `FigureResult`, `GeometrySummary`, `MetricRequirements`;
+  `EvidenceBundle.schema.json` is byte-identical.
+- README rewritten research-first; ERM/ESG remains a planned domain suite
+  (`docs/roadmap-esg.md`), no longer the center of the story.
+
 ## 0.3.0 — 2026-08-09
 
 Review of v0.2.0 concluded it was "a change-detection report, not a

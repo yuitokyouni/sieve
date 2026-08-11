@@ -1,0 +1,28 @@
+# The exploratory "claim" of this suite is deliberately weak: it scopes what
+# the inspection covers, not what the model proves. Inspect runs make no
+# PASS/FAIL decision against it.
+
+claim_id: exploratory-stylized-facts
+version: "0.1"
+statement: >-
+  Descriptive stylized-fact diagnostics of the simulated market data were
+  computed and rendered for visual inspection: return path texture, marginal
+  distribution, tail behavior, return and volatility autocorrelation,
+  aggregation profile, leverage kernel, drift/variance-ratio, and (when
+  volume is present) the volume-volatility relation.
+use_case: >-
+  Research-loop exploration of financial ABM output: spotting anomalies,
+  checking qualitative stylized facts across seeds, deciding whether a model
+  configuration is worth confirmatory testing. NOT a validation verdict, NOT
+  a reference comparison, NOT a claim that any stylized fact "holds".
+scope:
+  mode: exploratory
+  time_basis: step or timestamp
+  geometries: [single_long_series, multi_run_ensemble, multi_market_panel,
+               short_exploratory_series]
+required_dimensions: []
+optional_dimensions: []
+decision_policy: >-
+  No decisions. Figure statuses are OBSERVED / INSUFFICIENT /
+  NOT_APPLICABLE / NOT_TESTED; nothing aggregates, and nothing here should
+  be quoted as evidence that the model is realistic.

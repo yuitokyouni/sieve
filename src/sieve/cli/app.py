@@ -81,6 +81,70 @@ def doctor():
 
 
 @app.command()
+def inspect(
+    input_path: Path = typer.Argument(..., help="research input: a CSV "
+                                      "(timestamp/step + return/price, "
+                                      "optional run_id long format) or a "
+                                      "directory with manifest.yaml and "
+                                      "runs/*.csv"),
+    suite: str = typer.Option("financial-stylized-facts@0.1", "--suite",
+                              help="exploratory suite ref"),
+    out: Path = typer.Option(Path(".sieve/runs"), "--out",
+                             help="root directory for run outputs"),
+    seed: int = typer.Option(20260802, "--seed"),
+    derive_return: str = typer.Option(None, "--derive-return",
+                                      help="derive returns from a price "
+                                      "column: log | simple | diff "
+                                      "(never applied implicitly)"),
+    burn_in_steps: int = typer.Option(None, "--burn-in-steps",
+                                      help="drop this many leading rows "
+                                      "per run"),
+    burn_in_fraction: float = typer.Option(None, "--burn-in-fraction",
+                                           help="drop this fraction of "
+                                           "leading rows per run"),
+):
+    """Exploratory stylized-fact inspection: figures + descriptive stats.
+
+    Works without any reference data, on one short run or a multi-seed
+    ensemble. Emits NO pass/fail — figure statuses are OBSERVED /
+    INSUFFICIENT / NOT_APPLICABLE / NOT_TESTED. Writes a sealed
+    inspect_bundle.json, observations.parquet, figures/*.svg and
+    report/index.html into a new run directory.
+    """
+    from sieve.core.dataset import InputError
+
+    try:
+        from sieve.evaluation.inspect import run_inspect
+        run_dir = run_inspect(input_path, suite, out_root=out,
+                              master_seed=seed, derive=derive_return,
+                              burn_in_steps=burn_in_steps,
+                              burn_in_fraction=burn_in_fraction)
+    except InputError as e:
+        _fail(EXIT_INPUT, str(e))
+    except FileNotFoundError as e:
+        _fail(EXIT_MISSING, str(e))
+
+    from sieve.provenance.bundle import load_inspect
+    b = load_inspect(run_dir / "inspect_bundle.json")
+    typer.echo(f"inspect {b.run_manifest.run_id} → {run_dir}")
+    typer.secho("EXPLORATORY: no pass/fail; figures + descriptive "
+                "statistics only", fg=typer.colors.MAGENTA)
+    g = b.geometry
+    typer.echo(f"geometry: {g.geometry} ({g.geometry_source}), "
+               f"{g.n_runs} run(s), {g.n_obs_total} obs, "
+               f"time basis {g.time_basis}")
+    for f in b.figures:
+        mark = {"OBSERVED": typer.colors.BLUE,
+                "INSUFFICIENT": typer.colors.YELLOW}.get(f.status.value)
+        typer.secho(f"  {f.status.value:<15} {f.figure_id:<28} "
+                    f"{f.stylized_fact}", fg=mark)
+    typer.echo(f"bundle {b.bundle_hash[:16]}…")
+    typer.echo(f"report: {run_dir / 'report' / 'index.html'}")
+    typer.echo("statuses are per-figure data adequacy, not quality; "
+               "no aggregate exists")
+
+
+@app.command()
 def test(
     input_path: Path = typer.Argument(..., help="returns.csv or a directory "
                                       "containing returns.csv (+ manifest.yaml)"),
@@ -208,10 +272,19 @@ def verify(run_dir: Path = typer.Argument(..., help="run directory or "
 
 @app.command()
 def report(run_dir: Path = typer.Argument(..., help="existing run directory")):
-    """Re-render report/index.html from the stored evidence bundle."""
+    """Re-render report/index.html from the stored bundle (test or inspect)."""
+    if (run_dir / "inspect_bundle.json").exists():
+        from sieve.provenance.bundle import load_inspect
+        from sieve.reporting.html import render_inspect_report
+        bundle = load_inspect(run_dir / "inspect_bundle.json")
+        out = render_inspect_report(run_dir / "report" / "index.html",
+                                    bundle, run_dir)
+        typer.echo(str(out))
+        return
     bundle_path = run_dir / "evidence_bundle.json"
     if not bundle_path.exists():
-        _fail(EXIT_MISSING, f"no evidence_bundle.json in {run_dir}")
+        _fail(EXIT_MISSING, f"no evidence_bundle.json (or inspect_bundle"
+                            f".json) in {run_dir}")
     from sieve.provenance.bundle import load
     from sieve.reporting.html import render_report
     bundle = load(bundle_path)
@@ -282,7 +355,10 @@ def schemas_export(out: Path = typer.Option(Path("schemas"), "--out")):
     for name in ("EvidenceBundle", "ModelManifest", "DatasetManifest",
                  "ClaimSpec", "MetricSpec", "BaselineSpec", "TestResult",
                  "FailureFinding", "ValidationProfile", "TestSuiteManifest",
-                 "RunManifest"):
+                 "RunManifest",
+                 # research workbench artifacts (additive, v0.4.0)
+                 "InspectBundle", "FigureSpec", "FigureResult",
+                 "GeometrySummary", "MetricRequirements"):
         cls = getattr(models, name)
         path = out / f"{name}.schema.json"
         path.write_text(json.dumps(cls.model_json_schema(), indent=2,

@@ -29,7 +29,11 @@ import json
 from pathlib import Path
 
 from sieve.core.hashing import sha256_bytes, sha256_file
-from sieve.core.models import EvidenceBundle
+from sieve.core.models import (
+    INSPECT_HASH_EXCLUDED_PATHS,
+    EvidenceBundle,
+    InspectBundle,
+)
 from sieve.core.serialization import canonical_bytes, hashable_bytes, to_jsonable
 
 
@@ -56,13 +60,52 @@ def load(path: str | Path) -> EvidenceBundle:
     return EvidenceBundle.model_validate(json.loads(Path(path).read_text()))
 
 
+# ----------------------------------------------------------- inspect bundle
+# The exploratory artifact of ``sieve inspect``. Same two-layer scheme,
+# separate schema and exclusion set; nothing here touches how existing
+# evidence bundles seal or verify.
+
+def seal_inspect(bundle: InspectBundle) -> InspectBundle:
+    bundle.bundle_hash = sha256_bytes(
+        hashable_bytes(bundle, INSPECT_HASH_EXCLUDED_PATHS))
+    return bundle
+
+
+def write_inspect(bundle: InspectBundle, run_dir: str | Path) -> Path:
+    run_dir = Path(run_dir)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    path = run_dir / "inspect_bundle.json"
+    body = canonical_bytes(to_jsonable(bundle))
+    path.write_bytes(body)
+    (run_dir / "bundle.sha256").write_text(
+        f"{sha256_bytes(body)}  inspect_bundle.json\n")
+    return path
+
+
+def load_inspect(path: str | Path) -> InspectBundle:
+    return InspectBundle.model_validate(json.loads(Path(path).read_text()))
+
+
 def verify(run_dir_or_bundle: str | Path) -> list[str]:
-    """Return a list of problems; empty list = intact."""
+    """Return a list of problems; empty list = intact.
+
+    Handles both artifact kinds: a run directory with
+    ``evidence_bundle.json`` (``sieve test``) or ``inspect_bundle.json``
+    (``sieve inspect``); a file path may point at either bundle file.
+    """
     p = Path(run_dir_or_bundle)
     if p.is_dir():
-        bundle_path, base = p / "evidence_bundle.json", p
+        if (p / "evidence_bundle.json").exists():
+            bundle_path, base = p / "evidence_bundle.json", p
+        elif (p / "inspect_bundle.json").exists():
+            bundle_path, base = p / "inspect_bundle.json", p
+        else:
+            return [f"missing {p / 'evidence_bundle.json'} "
+                    f"(and no inspect_bundle.json)"]
     else:
         bundle_path, base = p, p.parent
+    if bundle_path.name == "inspect_bundle.json":
+        return _verify_inspect(bundle_path, base)
     problems: list[str] = []
     if not bundle_path.exists():
         return [f"missing {bundle_path}"]
@@ -83,6 +126,39 @@ def verify(run_dir_or_bundle: str | Path) -> list[str]:
         if recorded != sha256_file(bundle_path):
             problems.append(
                 "bundle.sha256 sidecar disagrees with evidence_bundle.json "
+                "file bytes")
+    else:
+        problems.append("missing bundle.sha256 sidecar")
+
+    for ref in bundle.artifact_index:
+        ap = base / ref.path
+        if not ap.exists():
+            problems.append(f"missing artifact {ref.path}")
+        elif sha256_file(ap) != ref.sha256:
+            problems.append(f"artifact modified: {ref.path}")
+    return problems
+
+
+def _verify_inspect(bundle_path: Path, base: Path) -> list[str]:
+    problems: list[str] = []
+    try:
+        bundle = load_inspect(bundle_path)
+    except Exception as e:
+        return [f"unparseable bundle: {e}"]
+
+    recomputed = sha256_bytes(
+        hashable_bytes(bundle, INSPECT_HASH_EXCLUDED_PATHS))
+    if recomputed != bundle.bundle_hash:
+        problems.append(
+            f"bundle_hash mismatch: recorded {bundle.bundle_hash[:16]}…, "
+            f"recomputed {recomputed[:16]}…")
+
+    sidecar = base / "bundle.sha256"
+    if sidecar.exists():
+        recorded = sidecar.read_text().split()[0]
+        if recorded != sha256_file(bundle_path):
+            problems.append(
+                "bundle.sha256 sidecar disagrees with inspect_bundle.json "
                 "file bytes")
     else:
         problems.append("missing bundle.sha256 sidecar")

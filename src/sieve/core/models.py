@@ -16,7 +16,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
-from sieve.core.enums import DIMENSIONS, Prespecification, Severity, Status
+from sieve.core.enums import (
+    DIMENSIONS,
+    ExploratoryStatus,
+    Prespecification,
+    Severity,
+    Status,
+)
 
 SCHEMA_VERSION = "0.1.0"
 
@@ -72,6 +78,28 @@ class ClaimSpec(_Model):
     decision_policy: str | None = None
 
 
+class MetricRequirements(_Model):
+    """Declared input requirements of one metric (task §3.5).
+
+    The runner/inspector consults this to decide, per metric, whether the
+    input is adequate — an inadequate metric becomes NOT_APPLICABLE or
+    INSUFFICIENT on its own without dragging other metrics down.
+    """
+
+    required_columns: list[str] = Field(default_factory=lambda: ["return"])
+    optional_columns: list[str] = Field(default_factory=list)
+    supported_geometries: list[str] = Field(default_factory=lambda: [
+        "single_long_series", "multi_run_ensemble", "multi_market_panel",
+        "paired_runs", "short_exploratory_series"])
+    minimum_observations_per_run: int = 300
+    minimum_runs: int = 1
+    supports_irregular_time: bool = True
+    requires_regular_spacing: bool = False
+    exploratory_plot_id: str | None = None
+    confirmatory_test_id: str | None = None
+    preprocessing_requirements: list[str] = Field(default_factory=list)
+
+
 class MetricSpec(_Model):
     metric_id: str
     version: str
@@ -83,6 +111,9 @@ class MetricSpec(_Model):
     known_blind_spots: list[str] = Field(default_factory=list)
     prespecification: Prespecification = Prespecification.UNKNOWN
     references: list[str] = Field(default_factory=list)
+    # additive (research workbench); not serialized inside evidence bundles,
+    # so old bundle hashes are unaffected
+    requirements: MetricRequirements | None = None
 
 
 class BaselineSpec(_Model):
@@ -344,4 +375,128 @@ COMPARE_HASH_EXCLUDED_PATHS = (
     ("compare_hash",),
     ("compare_id",),
     ("created_at",),
+)
+
+
+# --------------------------------------------------------------------------
+# Research workbench artifacts (additive; nothing below is embedded in
+# EvidenceBundle, so existing sealed bundles verify unchanged).
+# --------------------------------------------------------------------------
+
+class FigureSpec(_Model):
+    """Registry entry for one diagnostic figure (task §5.2).
+
+    Figures are versioned method declarations, exactly like metrics: what
+    the figure shows, what input it needs, what it is known to mislead on.
+    """
+
+    figure_id: str
+    version: str
+    display_name: str
+    stylized_fact: str
+    reading_guide: str = ""          # what to look at in this figure
+    supported_claims: list[str] = Field(default_factory=list)
+    required_columns: list[str] = Field(default_factory=lambda: ["return"])
+    supported_geometries: list[str] = Field(default_factory=lambda: [
+        "single_long_series", "multi_run_ensemble", "multi_market_panel",
+        "paired_runs", "short_exploratory_series"])
+    minimum_observations_per_run: int = 300
+    minimum_runs: int = 1
+    function_path: str = ""
+    parameters: dict[str, JsonValue] = Field(default_factory=dict)
+    related_metrics: list[str] = Field(default_factory=list)
+    known_visual_pitfalls: list[str] = Field(default_factory=list)
+    references: list[str] = Field(default_factory=list)
+    implemented: bool = True
+
+
+class FigureResult(_Model):
+    """Outcome of rendering one registered figure for one dataset."""
+
+    figure_id: str
+    version: str
+    display_name: str
+    stylized_fact: str
+    reading_guide: str = ""
+    status: ExploratoryStatus
+    n_runs_used: int = 0
+    n_obs_used: int = 0
+    summary_values: dict[str, float | None] = Field(default_factory=dict)
+    parameters: dict[str, JsonValue] = Field(default_factory=dict)
+    related_metrics: list[str] = Field(default_factory=list)
+    caveats: list[str] = Field(default_factory=list)
+    artifact_path: str | None = None      # figures/<id>.svg, when rendered
+    note: str | None = None               # why not rendered, when not
+
+
+class RunSummary(_Model):
+    """Per-run accounting: what went in, what burn-in removed."""
+
+    run_id: str
+    seed: int | None = None
+    n_obs_raw: int
+    n_obs: int
+    n_burned: int = 0
+    irregular_spacing: bool = False
+
+
+class GeometrySummary(_Model):
+    """Sampling geometry of the input, and where the label came from."""
+
+    geometry: str
+    geometry_source: str                  # "declared" | "structural_default"
+    time_basis: str                       # "step" | "timestamp"
+    n_runs: int
+    n_obs_total: int
+    columns: list[str] = Field(default_factory=list)
+    runs: list[RunSummary] = Field(default_factory=list)
+
+
+class MetricObservation(_Model):
+    """One metric evaluated on one run (exploratory, not a test)."""
+
+    metric_ref: str
+    run_id: str
+    value: float | None = None
+    status: ExploratoryStatus = ExploratoryStatus.OBSERVED
+    note: str | None = None
+
+
+class InspectBundle(_Model):
+    """Durable artifact of ``sieve inspect``: exploratory evidence only.
+
+    Contains no PASS/FAIL, no p-values and no reference comparison — those
+    belong to ``sieve test``. Sealed with the same two-layer scheme as
+    :class:`EvidenceBundle` (deterministic ``bundle_hash`` + file sidecar).
+    """
+
+    schema_version: str = SCHEMA_VERSION
+    bundle_id: UUID
+    created_at: datetime
+    mode: Literal["exploratory"] = "exploratory"
+    run_manifest: RunManifest
+    model: ModelManifest
+    dataset: DatasetManifest
+    suite_ref: str
+    suite_hash: str
+    geometry: GeometrySummary
+    figures: list[FigureResult] = Field(default_factory=list)
+    metric_observations: list[MetricObservation] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+    artifact_index: list[ArtifactRef] = Field(default_factory=list)
+    bundle_hash: str = ""
+
+
+# Volatile fields of the inspect artifact (same nulling rules as the bundle).
+INSPECT_HASH_EXCLUDED_PATHS = (
+    ("bundle_hash",),
+    ("bundle_id",),
+    ("created_at",),
+    ("run_manifest", "run_id"),
+    ("run_manifest", "created_at"),
+    ("run_manifest", "command"),
+    ("run_manifest", "input_path"),
+    ("run_manifest", "environment"),
+    ("dataset", "source_uri"),
+    ("artifact_index",),
 )

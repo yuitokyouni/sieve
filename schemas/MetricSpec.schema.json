@@ -1,5 +1,85 @@
 {
   "$defs": {
+    "MetricRequirements": {
+      "additionalProperties": false,
+      "description": "Declared input requirements of one metric (task \u00a73.5).\n\nThe runner/inspector consults this to decide, per metric, whether the\ninput is adequate \u2014 an inadequate metric becomes NOT_APPLICABLE or\nINSUFFICIENT on its own without dragging other metrics down.",
+      "properties": {
+        "confirmatory_test_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confirmatory Test Id"
+        },
+        "exploratory_plot_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exploratory Plot Id"
+        },
+        "minimum_observations_per_run": {
+          "default": 300,
+          "title": "Minimum Observations Per Run",
+          "type": "integer"
+        },
+        "minimum_runs": {
+          "default": 1,
+          "title": "Minimum Runs",
+          "type": "integer"
+        },
+        "optional_columns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Optional Columns",
+          "type": "array"
+        },
+        "preprocessing_requirements": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Preprocessing Requirements",
+          "type": "array"
+        },
+        "required_columns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Columns",
+          "type": "array"
+        },
+        "requires_regular_spacing": {
+          "default": false,
+          "title": "Requires Regular Spacing",
+          "type": "boolean"
+        },
+        "supported_geometries": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Supported Geometries",
+          "type": "array"
+        },
+        "supports_irregular_time": {
+          "default": true,
+          "title": "Supports Irregular Time",
+          "type": "boolean"
+        }
+      },
+      "title": "MetricRequirements",
+      "type": "object"
+    },
     "Prespecification": {
       "description": "Whether a diagnostic existed before the evidence it is judging.\n\n``POST_HOC`` is not a defect \u2014 it is disclosure. A metric added after\nobserving a failure is a discovered failure mode, not confirmatory\nevidence, and the report must say so (spec \u00a75.5).",
       "enum": [
@@ -50,6 +130,17 @@
       },
       "title": "References",
       "type": "array"
+    },
+    "requirements": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MetricRequirements"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "scale_invariant": {
       "title": "Scale Invariant",
