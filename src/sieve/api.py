@@ -20,11 +20,10 @@ import numpy as np
 from sieve.adapters.dataset import _apply_burn_in, _apply_derivation
 from sieve.core.dataset import (
     RESERVED_COLUMNS,
-    Geometry,
     InputError,
     RunSeries,
     SimulationDataset,
-    default_geometry,
+    resolve_geometry,
     validate_run,
 )
 from sieve.core.models import TransformSpec
@@ -54,16 +53,7 @@ def _finish(runs: list[RunSeries], *, geometry: str | None,
         transforms.append(TransformSpec(
             name="derive_return",
             parameters={"method": derive, "source_column": "price"}))
-    if geometry is not None:
-        try:
-            g = Geometry(geometry)
-        except ValueError:
-            raise InputError(
-                f"unknown geometry '{geometry}'; choose one of: "
-                + ", ".join(x.value for x in Geometry)) from None
-        source = "declared"
-    else:
-        g, source = default_geometry(runs), "structural_default"
+    g, source = resolve_geometry(geometry, runs)
     return SimulationDataset(runs=runs, geometry=g, geometry_source=source,
                              time_basis=time_basis, transforms=transforms)
 
@@ -161,6 +151,10 @@ def from_dataframe(df: Any, *, derive: str | None = None,
         raise InputError(
             f"dataframe has no observable columns (got {names}); need at "
             "least one of return, price, or another numeric column")
+    if "step" in data and "timestamp" in data:
+        raise InputError(
+            "dataframe has both 'step' and 'timestamp' columns; declare one "
+            "time basis")
     n = len(data[names[0]])
     if any(len(data[c]) != n for c in names):
         raise InputError("dataframe columns have unequal lengths")
@@ -182,13 +176,15 @@ def from_dataframe(df: Any, *, derive: str | None = None,
                    for c in observables}
         steps = (np.array([int(data["step"][i]) for i in rows],
                           dtype=np.int64) if "step" in data else None)
+        timestamps = ([str(data["timestamp"][i]) for i in rows]
+                      if "timestamp" in data else None)
         runs.append(RunSeries(run_id=rid, columns=columns, steps=steps,
-                              n_obs_raw=len(rows)))
+                              timestamps=timestamps, n_obs_raw=len(rows)))
         validate_run(runs[-1])
     return _finish(runs, geometry=geometry, derive=derive,
                    burn_in_steps=burn_in_steps,
                    burn_in_fraction=burn_in_fraction,
-                   time_basis="step")
+                   time_basis="timestamp" if "timestamp" in data else "step")
 
 
 def _frame_to_dict(df: Any) -> dict[str, list]:

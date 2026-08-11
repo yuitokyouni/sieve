@@ -28,13 +28,12 @@ import yaml
 
 from sieve.core.dataset import (
     RESERVED_COLUMNS,
-    Geometry,
     InputError,
     RunSeries,
     SimulationDataset,
     burn_in_count,
-    default_geometry,
     derive_return,
+    resolve_geometry,
     validate_run,
 )
 from sieve.core.hashing import sha256_file, sha256_params
@@ -156,6 +155,11 @@ def _apply_derivation(run: RunSeries, method: str) -> None:
         raise InputError(
             f"run '{run.run_id}': derive_return='{method}' requested but "
             "there is no 'price' column")
+    if run.n_obs < 2:
+        raise InputError(
+            f"run '{run.run_id}': only {run.n_obs} observation(s) remain "
+            "(after any burn-in), but return derivation consumes one row; "
+            "provide longer runs or lower the burn-in")
     r = derive_return(run.columns["price"], method, run.run_id)
     # derivation consumes the first row of every aligned observable
     run.columns = {c: v[1:] for c, v in run.columns.items()}
@@ -217,37 +221,27 @@ def _assemble(runs: list[RunSeries], *, declared_geometry: str | None,
             name="derive_return",
             parameters={"method": derive, "source_column": "price"}))
 
-    if declared_geometry is not None:
-        try:
-            geometry = Geometry(declared_geometry)
-        except ValueError:
-            raise InputError(
-                f"unknown geometry '{declared_geometry}'; choose one of: "
-                + ", ".join(g.value for g in Geometry)) from None
-        if geometry is Geometry.SINGLE_LONG_SERIES and len(runs) > 1:
-            raise InputError(
-                f"geometry 'single_long_series' declared but the input has "
-                f"{len(runs)} runs; declare multi_run_ensemble or provide "
-                "one run — sieve never concatenates runs into one series")
-        source = "declared"
-    else:
-        geometry = default_geometry(runs)
-        source = "structural_default"
+    geometry, source = resolve_geometry(declared_geometry, runs)
 
     return SimulationDataset(runs=runs, geometry=geometry,
                              geometry_source=source, time_basis=time_basis,
                              transforms=transforms, caveats=caveats)
 
 
-def _manifests(meta: dict, *, dataset_id: str, source: Path,
+def _manifests(meta: dict, *, source: Path,
                content_hash: str, dataset: SimulationDataset,
                ) -> tuple[ModelManifest, DatasetManifest]:
+    # Undeclared identity defaults are CONTENT-derived, never path-derived:
+    # these fields live inside the sealed bundle, and the seal contract says
+    # the same input bytes under another path are the same science.
+    content_id = f"sha256:{content_hash[:12]}"
     params = dict(meta.get("parameters", {}))
     model = ModelManifest(
-        model_id=str(meta.get("model_id", dataset_id)),
+        model_id=str(meta.get("model_id", f"undeclared-model-{content_id}")),
         model_version=str(meta.get("model_version", "unversioned")),
         display_name=str(meta.get("display_name",
-                                  meta.get("model_id", dataset_id))),
+                                  meta.get("model_id",
+                                           f"undeclared model {content_id}"))),
         model_family=meta.get("model_family"),
         adapter_id="dataset@1",
         code_uri=meta.get("code_uri"),
@@ -258,7 +252,7 @@ def _manifests(meta: dict, *, dataset_id: str, source: Path,
         license=meta.get("license"),
         notes=meta.get("notes"))
     ds = DatasetManifest(
-        dataset_id=str(meta.get("dataset_id", f"input:{dataset_id}")),
+        dataset_id=str(meta.get("dataset_id", f"input:{content_id}")),
         source_uri=str(source),
         frequency=str(meta.get("frequency", dataset.time_basis)),
         transforms=dataset.transforms,
@@ -301,7 +295,7 @@ def _load_directory(root: Path, meta: dict, derive: str | None,
     entries = meta.get("runs")
     per_run_burn: dict[str, int] = {}
     seeds: dict[str, int] = {}
-    files: list[Path] = []
+    file_entries: list[tuple[Path, dict]] = []
     if entries:
         for e in entries:
             if not isinstance(e, dict) or "file" not in e:
@@ -312,12 +306,7 @@ def _load_directory(root: Path, meta: dict, derive: str | None,
             if not p.exists():
                 raise InputError(f"manifest lists {e['file']} but {p} does "
                                  "not exist")
-            files.append(p)
-            rid = str(e.get("run_id", p.stem))
-            if "seed" in e:
-                seeds[rid] = int(e["seed"])
-            if "burn_in_steps" in e:
-                per_run_burn[rid] = int(e["burn_in_steps"])
+            file_entries.append((p, e))
     else:
         if not runs_dir.is_dir():
             raise InputError(
@@ -326,13 +315,38 @@ def _load_directory(root: Path, meta: dict, derive: str | None,
         files = sorted(runs_dir.glob("*.csv"))
         if not files:
             raise InputError(f"{runs_dir}: no *.csv run files found")
+        file_entries = [(p, {}) for p in files]
 
     all_runs: list[RunSeries] = []
     bases: set[str] = set()
-    hash_parts: list[str] = []
-    for p in files:
+    hash_parts: dict[str, str] = {}
+    for p, e in file_entries:
         runs = _parse_file(p)
-        hash_parts.append(sha256_file(p))
+        # per-entry declarations bind to the runs actually parsed from that
+        # file — a name mismatch is an error, never a silent drop
+        if "run_id" in e:
+            if len(runs) != 1:
+                raise InputError(
+                    f"manifest entry {e['file']}: run_id declared but the "
+                    f"file contains {len(runs)} runs; per-run settings for "
+                    "long-format files need one manifest entry per run_id "
+                    "column value, which is not supported — split the file "
+                    "or drop the declaration")
+            runs[0].run_id = str(e["run_id"])
+        if "seed" in e or "burn_in_steps" in e:
+            if len(runs) != 1:
+                raise InputError(
+                    f"manifest entry {e['file']}: seed/burn_in_steps "
+                    f"declared but the file contains {len(runs)} runs; "
+                    "per-run settings need single-run files")
+            if "seed" in e:
+                seeds[runs[0].run_id] = int(e["seed"])
+            if "burn_in_steps" in e:
+                per_run_burn[runs[0].run_id] = int(e["burn_in_steps"])
+        # run-file names are part of the declared dataset identity: they are
+        # hashed into content_hash, so run ids derived from them stay
+        # consistent with the seal contract
+        hash_parts[p.relative_to(root).as_posix()] = sha256_file(p)
         for r in runs:
             bases.add("step" if r.steps is not None else
                       "timestamp" if r.timestamps is not None else "none")
@@ -375,8 +389,7 @@ def load_dataset(
         if (input_path / "runs").is_dir() or meta.get("runs"):
             dataset, content_hash = _load_directory(
                 input_path, meta, derive, burn_steps, burn_fraction)
-            model, ds = _manifests(meta, dataset_id=input_path.name,
-                                   source=input_path,
+            model, ds = _manifests(meta, source=input_path,
                                    content_hash=content_hash, dataset=dataset)
             return dataset, model, ds
         if legacy_csv.exists():
@@ -399,15 +412,25 @@ def _load_single_file(csv_path: Path, meta: dict, derive: str | None,
                       ) -> tuple[SimulationDataset, ModelManifest,
                                  DatasetManifest]:
     runs = _parse_file(csv_path)
+    if len(runs) == 1 and runs[0].run_id == csv_path.stem:
+        # no run_id column: the id was a filename default. Filenames of bare
+        # CSVs are outside the content hash, so a path-derived id would leak
+        # into the seal; use a constant instead.
+        runs[0].run_id = "run-0"
     time_basis = ("step" if runs[0].steps is not None else
                   "timestamp" if runs[0].timestamps is not None else "step")
+    seeds = {str(k): int(v) for k, v in (meta.get("seeds") or {}).items()}
+    unknown = sorted(set(seeds) - {r.run_id for r in runs})
+    if unknown:
+        raise InputError(
+            f"manifest seeds name run id(s) {unknown} not present in the "
+            f"input (have: {[r.run_id for r in runs]}); fix the mapping — "
+            "sieve does not silently drop declared seeds")
     dataset = _assemble(
         runs, declared_geometry=meta.get("geometry"), time_basis=time_basis,
         transforms=[], derive=derive, burn_steps=burn_steps,
-        burn_fraction=burn_fraction,
-        seeds={str(k): int(v) for k, v in (meta.get("seeds") or {}).items()}
-        or None)
-    model, ds = _manifests(meta, dataset_id=csv_path.stem, source=csv_path,
+        burn_fraction=burn_fraction, seeds=seeds or None)
+    model, ds = _manifests(meta, source=csv_path,
                            content_hash=sha256_file(csv_path),
                            dataset=dataset)
     return dataset, model, ds

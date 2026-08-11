@@ -88,7 +88,7 @@ anywhere in this report.</div>
   <tr><th>Command</th><td><code>{{ b.run_manifest.command }}</code></td></tr>
   <tr><th>Master seed</th><td>{{ b.run_manifest.master_seed }}</td></tr>
   {% if b.model.parameters %}
-  <tr><th>Declared parameters</th><td><code>{{ b.model.parameters }}</code></td></tr>
+  <tr><th>Declared parameters</th><td><code>{{ b.model.parameters|compact_json }}</code></td></tr>
   {% endif %}
 </table>
 
@@ -106,7 +106,7 @@ anywhere in this report.</div>
   {% if b.dataset.transforms %}
   <tr><th>Recorded transforms</th><td>
     {% for t in b.dataset.transforms %}
-      <code>{{ t.name }}</code> {{ t.parameters }}<br>
+      <code>{{ t.name }}</code> {{ t.parameters|compact_json }}<br>
     {% endfor %}</td></tr>
   {% endif %}
 </table>
@@ -186,7 +186,7 @@ summaries never replace the curve.</p>
       <dt>Reference comparator</dt><dd>none — exploratory suite ships no
           reference distributions</dd>
       {% if f.parameters %}
-      <dt>Parameters</dt><dd><code>{{ f.parameters }}</code></dd>
+      <dt>Parameters</dt><dd><code>{{ f.parameters|compact_json }}</code></dd>
       {% endif %}
     </dl>
     {% if f.caveats %}
@@ -285,7 +285,7 @@ agreement, confirmatory separation, regime response, intervention validity.</p>
   <tr><th>Input hash</th><td><code>{{ b.dataset.content_hash }}</code></td></tr>
   <tr><th>Suite hash</th><td><code>{{ b.suite_hash }}</code></td></tr>
   <tr><th>Sieve version</th><td>{{ b.run_manifest.sieve_version }}</td></tr>
-  <tr><th>Environment</th><td><code>{{ b.run_manifest.environment }}</code></td></tr>
+  <tr><th>Environment</th><td><code>{{ b.run_manifest.environment|compact_json }}</code></td></tr>
   <tr><th>Verify</th><td><code>sieve verify &lt;run-dir&gt;</code> recomputes
       the seal and every artifact hash, including each figure SVG</td></tr>
 </table>

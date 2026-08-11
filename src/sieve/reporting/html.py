@@ -5,21 +5,44 @@ none exists anywhere in the system."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+from jinja2 import Environment, FileSystemLoader
 
 from sieve.core.branding import PRODUCT_NAME, REPORT_FOOTER
 from sieve.core.enums import Status
 from sieve.core.models import EvidenceBundle
 
+# Autoescape unconditionally: every template here renders HTML, and the
+# ``.j2`` suffix does NOT match select_autoescape's default extension list —
+# manifest-controlled strings (display names, notes, parameters) must never
+# reach the page unescaped. The one intentional raw-markup spot (inlined
+# figure SVG) uses an explicit ``|safe``.
 _env = Environment(
     loader=FileSystemLoader(Path(__file__).parent / "templates"),
-    autoescape=select_autoescape(["html"]))
+    autoescape=True)
+_env.filters["compact_json"] = lambda d: json.dumps(
+    d, sort_keys=True, ensure_ascii=False)
+
+
+def _canonical(bundle):
+    """Round-trip an artifact through canonical JSON before rendering.
+
+    Dict key order differs between a freshly built bundle (insertion order)
+    and one loaded from the canonical file (sorted). Rendering from the
+    canonical form makes the first render and any ``sieve report`` re-render
+    byte-identical, so re-rendering never trips the artifact-integrity layer.
+    """
+    from sieve.core.serialization import canonical_bytes, to_jsonable
+
+    return type(bundle).model_validate(
+        json.loads(canonical_bytes(to_jsonable(bundle))))
 
 
 def render_report(out_path: str | Path, bundle: EvidenceBundle,
                   baseline_context: dict[str, list[str]]) -> Path:
+    bundle = _canonical(bundle)
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tpl = _env.get_template("report.html.j2")
@@ -43,6 +66,7 @@ def render_inspect_report(out_path: str | Path, bundle,
     is moved or the report file is shared alone; the standalone SVG files
     remain sealed artifacts in ``figures/``.
     """
+    bundle = _canonical(bundle)
     out_path = Path(out_path)
     run_dir = Path(run_dir)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -91,6 +115,7 @@ def render_inspect_report(out_path: str | Path, bundle,
 def render_compare(out_path: str | Path, cmp_bundle,
                    link_a: str | None = None,
                    link_b: str | None = None) -> Path:
+    cmp_bundle = _canonical(cmp_bundle)
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tpl = _env.get_template("compare.html.j2")

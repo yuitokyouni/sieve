@@ -66,7 +66,7 @@
   
   <ul><li>excess_kurtosis: REGRESSION</li><li>hill_left: REGRESSION</li><li>acf_abs_1: CHANGED on required dimension volatility_dynamics</li><li>acf_abs_20: REGRESSION</li></ul>
   
-  <div class="muted" style="font-size:.85em">REVIEW_REQUIRED if any metric on one of the claim's required dimensions has verdict CHANGED or transition REGRESSION or INDETERMINATE, or if any metric on any dimension has transition REGRESSION. IMPROVEMENT alone never triggers. Otherwise NO_CHANGE_DETECTED. This is a routing rule for human review, applied per metric; nothing is weighted, summed or averaged.</div>
+  <div class="muted" style="font-size:.85em">REVIEW_REQUIRED if any metric on one of the claim&#39;s required dimensions has verdict CHANGED or transition REGRESSION or INDETERMINATE, or if any metric on any dimension has transition REGRESSION. IMPROVEMENT alone never triggers. Otherwise NO_CHANGE_DETECTED. This is a routing rule for human review, applied per metric; nothing is weighted, summed or averaged.</div>
 </div>
 
 
@@ -226,11 +226,11 @@ say changed. The rows below measure what actually changed.</p>
 </ul>
 
 <h2>4 · Caveats</h2>
-<ul><li>the A-vs-B null is a permutation over windows, valid for exchangeable window sets; windows cut from one long simulated path share that path</li><li>measured family-wise false-positive rate of this design under H0 (same parameters, independent seeds): 0.005 at 15v15 windows (n=400 pairs), 0.0 at 6v6 (n=200) — conservative relative to the nominal alpha (docs/compare-calibration.json, tools/calibrate_compare.py)</li><li>measured power boundary: persistence drifts of |delta beta| <= 0.04 are mostly undetected at 15v15 windows, and a tail-df clip alone at high persistence is nearly invisible to unconditional window statistics (docs/compare-calibration.md)</li><li>NOT_SEPARATED means no detectable difference at the alpha=0.01 line with this many windows — it is not a claim of equality</li><li>the approval outcome is a versioned routing rule over required dimensions, not an aggregate; verdicts remain per-metric</li></ul>
+<ul><li>the A-vs-B null is a permutation over windows, valid for exchangeable window sets; windows cut from one long simulated path share that path</li><li>measured family-wise false-positive rate of this design under H0 (same parameters, independent seeds): 0.005 at 15v15 windows (n=400 pairs), 0.0 at 6v6 (n=200) — conservative relative to the nominal alpha (docs/compare-calibration.json, tools/calibrate_compare.py)</li><li>measured power boundary: persistence drifts of |delta beta| &lt;= 0.04 are mostly undetected at 15v15 windows, and a tail-df clip alone at high persistence is nearly invisible to unconditional window statistics (docs/compare-calibration.md)</li><li>NOT_SEPARATED means no detectable difference at the alpha=0.01 line with this many windows — it is not a claim of equality</li><li>the approval outcome is a versioned routing rule over required dimensions, not an aggregate; verdicts remain per-metric</li></ul>
 
 <h2>5 · Provenance</h2>
 <table>
-  <tr><th>Compare</th><td><code>c2b54f35be95</code> ·
+  <tr><th>Compare</th><td><code>b0208a03033d</code> ·
       sieve 0.4.0 · seed 20260802</td></tr>
   <tr><th>Suite hash</th><td><code>343042f8ceedf18a…</code></td></tr>
   <tr><th>Inputs</th><td>A input sha256 <code>e0262952a91d…</code>

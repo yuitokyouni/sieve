@@ -151,3 +151,43 @@ new suites under a new id, new schema files.
 - `NOT_TESTED` — the figure is registered but not implemented/enabled.
 
 No count, fraction, or aggregate over figure statuses appears anywhere.
+
+## 9. Pre-release adversarial review (v0.4.0)
+
+Before release, the full diff was reviewed by a five-dimension adversarial
+workflow (seal compatibility, scientific correctness, input contract,
+report/HTML, tests/invariants), each finding independently verified by a
+refutation-first agent. Outcomes, all fixed and regression-tested in
+`tests/unit/test_review_fixes.py`:
+
+- **Seal**: undeclared identity defaults (dataset/model/run ids) were
+  path-derived and leaked into the InspectBundle seal → now content-derived
+  (`input:sha256:…`, constant `run-0` for bare CSVs); directory run-file
+  names are hashed into `content_hash`, making run ids from filenames part
+  of the *declared* identity.
+- **Seal**: `sieve report` re-rendering differed byte-wise from the sealed
+  report (dict key order) → all renders now go through the canonical
+  (sorted-key) form; re-render is byte-identical and `verify` stays green.
+- **Security**: report templates end in `.j2`, which
+  `select_autoescape(["html"])` does not match — autoescape was OFF for all
+  report templates (including the pre-existing confirmatory ones) → now
+  unconditionally on; the inlined SVG keeps its explicit `|safe`.
+- **Science**: the tail-CCDF pool was mean-centered while the Hill metrics
+  run on raw returns (≈7% shift on the test fixture) → the tail figure now
+  scales by sd only, so the overlay estimates the metric's quantity; y-axis
+  labels corrected to the per-sign conditional survival actually plotted.
+- **Science**: pooled volume–volatility bins could fabricate a cross-run
+  relation from level differences (Simpson's paradox, demonstrated) → runs
+  are per-run mean-normalized before pooling, disclosed on the figure.
+- **Inputs**: manifest per-run `run_id`/`seed`/`burn_in_steps` that did not
+  match a parsed run were silently dropped → declared run_ids now rename
+  the run (single-run files only), unmatched keys are `InputError`s;
+  `from_runs`/`from_arrays` gained the same `single_long_series` guard as
+  the file adapter; `from_dataframe` supports `timestamp` columns instead
+  of silently discarding them; burn-in + derivation that would leave zero
+  rows is refused.
+
+Refuted (no change): the Hill overlay's Weissman-form anchor is the
+textbook estimator; timestamp-spacing irregularity detection would require
+calendar inference (banned by invariant); pre-pivot sealed bundles were
+demonstrated to verify byte-identically under the new code.

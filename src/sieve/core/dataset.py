@@ -207,3 +207,27 @@ def default_geometry(runs: list[RunSeries]) -> Geometry:
     if runs and runs[0].n_obs < SHORT_SERIES_THRESHOLD:
         return Geometry.SHORT_EXPLORATORY_SERIES
     return Geometry.SINGLE_LONG_SERIES
+
+
+def resolve_geometry(declared: str | None, runs: list[RunSeries]
+                     ) -> tuple[Geometry, str]:
+    """Resolve a (possibly declared) geometry against the actual runs.
+
+    Shared by the file adapter and the Python API so both enforce the same
+    rules: unknown names are errors, and ``single_long_series`` with more
+    than one run is refused — sieve never concatenates runs.
+    """
+    if declared is None:
+        return default_geometry(runs), "structural_default"
+    try:
+        geometry = Geometry(declared)
+    except ValueError:
+        raise InputError(
+            f"unknown geometry '{declared}'; choose one of: "
+            + ", ".join(g.value for g in Geometry)) from None
+    if geometry is Geometry.SINGLE_LONG_SERIES and len(runs) > 1:
+        raise InputError(
+            f"geometry 'single_long_series' declared but the input has "
+            f"{len(runs)} runs; declare multi_run_ensemble or provide "
+            "one run — sieve never concatenates runs into one series")
+    return geometry, "declared"

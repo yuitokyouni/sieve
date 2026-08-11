@@ -85,12 +85,22 @@ def _all_degenerate(ds: SimulationDataset) -> bool:
     return all(r.columns["return"].std() <= 0 for r in ds.runs)
 
 
-def _standardized_pool(ds: SimulationDataset
+def _standardized_pool(ds: SimulationDataset, *, center: bool = True
                        ) -> tuple[np.ndarray, list[str], list[str]]:
-    """Per-run standardized returns pooled for marginal views only."""
+    """Per-run standardized returns pooled for marginal views only.
+
+    ``center=False`` divides by the run sd without removing the mean — the
+    tail-CCDF figure uses this so its Hill overlay is computed on the same
+    quantity as the registered ``hill_left/right`` metrics (Hill is
+    scale-invariant but NOT shift-invariant; centering would move it).
+    """
     zs, skipped, caveats = [], [], []
     for rid, r in ds.returns_by_run().items():
-        z = C.standardize(r)
+        if center:
+            z = C.standardize(r)
+        else:
+            s = r.std()
+            z = r / s if np.isfinite(s) and s > 0 else None
         if z is None:
             skipped.append(rid)
         else:
@@ -201,7 +211,7 @@ def fig_marginal_distribution(ds: SimulationDataset, params: dict
 
 # ------------------------------------------------- C. tail CCDF + Hill overlay
 
-def _tail_panel(tail: np.ndarray, side: str, frac: float
+def _tail_panel(tail: np.ndarray, side: str, ylabel: str, frac: float
                 ) -> tuple[str | None, dict | None, list[str]]:
     caveats: list[str] = []
     if len(tail) < 50:
@@ -224,7 +234,7 @@ def _tail_panel(tail: np.ndarray, side: str, frac: float
     else:
         xs_d, sv_d = xs, sv
     h = C.hill_overlay(tail, frac)
-    p = Plot(title=f"{side} tail CCDF", xlabel="|z|", ylabel="P(|Z| >= x)",
+    p = Plot(title=f"{side} tail CCDF", xlabel="|z|", ylabel=ylabel,
              xscale="log", yscale="log",
              note=f"tail n={len(tail)}" + (f", Hill k={h['k']}" if h else ""))
     p.scatter(list(xs_d), list(sv_d), radius=2.2, opacity=0.8,
@@ -249,24 +259,34 @@ def _tail_panel(tail: np.ndarray, side: str, frac: float
 
 def fig_tail_ccdf(ds: SimulationDataset, params: dict) -> FigureOutput:
     frac = float(params.get("tail_frac", 0.05))
-    pool, skipped, caveats = _standardized_pool(ds)
+    # scale-only normalization (no centering): Hill is shift-variant, and
+    # the overlay must estimate the same quantity as the hill_left/right
+    # metrics, which run on raw (uncentered) returns
+    pool, skipped, caveats = _standardized_pool(ds, center=False)
     if len(pool) < 300:
         return _insufficient(
             f"only {len(pool)} standardized observations (need >= 300 for "
             "tail evidence)", caveats=caveats)
     panels = []
-    for side, tail in (("positive", pool[pool > 0]),
-                       ("negative (|z|)", -pool[pool < 0])):
-        svg, _h, cv = _tail_panel(tail, side, frac)
+    for side, tail, ylab in (
+            ("positive", pool[pool > 0], "P(Z >= x | Z > 0)"),
+            ("negative (|z|)", -pool[pool < 0], "P(-Z >= x | Z < 0)")):
+        svg, _h, cv = _tail_panel(tail, side, ylab, frac)
         caveats += cv
         if svg:
             panels.append(svg)
     if not panels:
         return _insufficient("neither tail has enough points (>= 50 each)",
                              caveats=caveats)
-    caveats += [_POOL_CAVEAT,
-                "log-log straightness alone does not establish a power law; "
-                "the Hill line is an estimate over the marked k region only"]
+    caveats += [
+        "runs are scaled by their own sd (mean NOT removed) before pooling, "
+        "so the Hill overlay estimates the same tail index as the "
+        "hill_left/hill_right metrics; pooling is disclosed and applies to "
+        "this marginal view only",
+        "each panel shows the survival fraction WITHIN its own tail "
+        "(conditional on the sign), as labeled on the y axis",
+        "log-log straightness alone does not establish a power law; "
+        "the Hill line is an estimate over the marked k region only"]
     return FigureOutput(
         svg=panels[0] if len(panels) == 1 else panel_grid(panels, ncols=2),
         status=OBSERVED, n_runs_used=ds.n_runs - len(skipped),
@@ -531,6 +551,7 @@ def fig_volume_volatility(ds: SimulationDataset, params: dict
     max_scatter = int(params.get("max_scatter_points", 2500))
     vol_by_run = ds.column_by_run("volume")
     ret_by_run = ds.returns_by_run()
+    normalized = ds.n_runs > 1
     pairs_v, pairs_a, rhos = [], [], {}
     for rid in ret_by_run:
         v, a = vol_by_run[rid], np.abs(ret_by_run[rid])
@@ -539,6 +560,14 @@ def fig_volume_volatility(ds: SimulationDataset, params: dict
             continue
         rho = spearmanr(v, a).statistic
         rhos[rid] = _fin(rho)
+        if normalized:
+            # pool in per-run-mean units: cross-run LEVEL differences would
+            # otherwise fabricate (or hide) a pooled relation that no single
+            # run contains (Simpson's paradox); rho stays per-run regardless
+            vm, am = v.mean(), a.mean()
+            if vm <= 0 or am <= 0:
+                continue               # rho kept above; run not poolable
+            v, a = v / vm, a / am
         pairs_v.append(v)
         pairs_a.append(a)
     if not pairs_v:
@@ -561,7 +590,9 @@ def fig_volume_volatility(ds: SimulationDataset, params: dict
         if m.sum() >= 20:
             bin_x.append(float(v_all[m].mean()))
             bin_y.append(float(a_all[m].mean()))
-    p = Plot(title="volume vs |return|", xlabel="volume", ylabel="|return|",
+    unit = " (per-run mean = 1)" if normalized else ""
+    p = Plot(title="volume vs |return|", xlabel=f"volume{unit}",
+             ylabel=f"|return|{unit}",
              note=f"{int(shown.sum())} of {len(v_all)} points shown")
     p.scatter(list(v_show[shown]), list(a_show[shown]), radius=1.8,
               opacity=0.28, label="per-step pairs")
@@ -582,6 +613,13 @@ def fig_volume_volatility(ds: SimulationDataset, params: dict
         "Spearman rho is reported per run (median across runs); no "
         "uncertainty interval is attached in exploratory mode",
     ]
+    if normalized:
+        caveats.append(
+            "volume and |return| are divided by their per-run means before "
+            "pooling, so the scatter and binned means show the WITHIN-run "
+            "relation; cross-run level differences are deliberately removed "
+            "(they would otherwise fabricate a pooled slope no single run "
+            "contains)")
     key = "spearman_volume_absret" + ("_run_median" if ds.n_runs > 1 else "")
     return FigureOutput(
         svg=p.render(), status=OBSERVED,
