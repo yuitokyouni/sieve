@@ -102,6 +102,19 @@ def inspect(
     burn_in_fraction: float = typer.Option(None, "--burn-in-fraction",
                                            help="drop this fraction of "
                                            "leading rows per run"),
+    reference: Path = typer.Option(None, "--reference",
+                                   help="empirical comparator series (one "
+                                   "run, e.g. an index's daily returns); "
+                                   "its derived curves are overlaid on the "
+                                   "figures as visual context only"),
+    reference_label: str = typer.Option(None, "--reference-label",
+                                        help="display name for the "
+                                        "reference overlay, e.g. "
+                                        "'Nikkei 225'"),
+    reference_derive_return: str = typer.Option(
+        None, "--reference-derive-return",
+        help="derive the reference's returns from its price column: "
+             "log | simple | diff"),
 ):
     """Exploratory stylized-fact inspection: figures + descriptive stats.
 
@@ -118,7 +131,10 @@ def inspect(
         run_dir = run_inspect(input_path, suite, out_root=out,
                               master_seed=seed, derive=derive_return,
                               burn_in_steps=burn_in_steps,
-                              burn_in_fraction=burn_in_fraction)
+                              burn_in_fraction=burn_in_fraction,
+                              reference_path=reference,
+                              reference_label=reference_label,
+                              reference_derive=reference_derive_return)
     except InputError as e:
         _fail(EXIT_INPUT, str(e))
     except FileNotFoundError as e:

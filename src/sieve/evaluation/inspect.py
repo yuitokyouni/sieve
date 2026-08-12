@@ -23,7 +23,7 @@ import numpy as np
 
 from sieve import __version__
 from sieve.adapters.dataset import load_dataset
-from sieve.core.dataset import SimulationDataset
+from sieve.core.dataset import InputError, SimulationDataset
 from sieve.core.enums import ExploratoryStatus
 from sieve.core.hashing import sha256_file
 from sieve.core.models import (
@@ -117,18 +117,55 @@ def _write_observations(run_dir: Path, ds: SimulationDataset,
     pl.DataFrame(rows).write_parquet(run_dir / "observations.parquet")
 
 
+def _load_reference(reference_path: str | Path,
+                    label: str | None,
+                    derive: str | None) -> dict:
+    """Load an empirical comparator series for figure overlays.
+
+    The reference must resolve to a SINGLE series (one run) with a return
+    column (derivable with an explicit method). Its identity is the content
+    hash — the default label is content-derived so no path leaks into the
+    sealed figure parameters.
+    """
+    ref_ds, _model, ref_manifest = load_dataset(reference_path, derive=derive)
+    if ref_ds.n_runs != 1:
+        raise InputError(
+            f"reference input has {ref_ds.n_runs} runs; the overlay "
+            "comparator must be a single series (e.g. one index's daily "
+            "returns)")
+    if not ref_ds.has_column("return"):
+        raise InputError(
+            "reference input has no 'return' column; pass "
+            "--reference-derive-return log|simple|diff for price-only "
+            "references")
+    r = ref_ds.runs[0].columns["return"]
+    content_hash = ref_manifest.content_hash
+    return {
+        "r": r,
+        "label": label or f"sha256:{content_hash[:12]}",
+        "content_hash": content_hash,
+        "n_obs": int(len(r)),
+    }
+
+
 def run_inspect(input_path: str | Path,
                 suite_ref: str = DEFAULT_SUITE,
                 out_root: str | Path = ".sieve/runs",
                 master_seed: int = 20260802,
                 derive: str | None = None,
                 burn_in_steps: int | None = None,
-                burn_in_fraction: float | None = None) -> Path:
+                burn_in_fraction: float | None = None,
+                reference_path: str | Path | None = None,
+                reference_label: str | None = None,
+                reference_derive: str | None = None) -> Path:
     """Run the exploratory inspection; return the new run directory."""
     suite = load_suite(suite_ref)
     ds, model, dataset_manifest = load_dataset(
         input_path, derive=derive, burn_in_steps=burn_in_steps,
         burn_in_fraction=burn_in_fraction)
+    reference = (None if reference_path is None else
+                 _load_reference(reference_path, reference_label,
+                                 reference_derive))
 
     _rngs, seed_tree = make_rngs(master_seed)
     run_id = uuid.uuid4().hex[:12]
@@ -137,12 +174,15 @@ def run_inspect(input_path: str | Path,
 
     observations = _metric_observations(ds, suite.manifest.metrics)
     _write_observations(run_dir, ds, observations, suite.manifest.metrics)
-    figures = render_figures(ds, suite.figures, run_dir)
+    figures = render_figures(ds, suite.figures, run_dir,
+                             reference=reference)
 
     manifest = RunManifest(
         run_id=run_id, created_at=dt.datetime.now(dt.timezone.utc),
         sieve_version=__version__,
-        command=f"sieve inspect {input_path} --suite {suite_ref}",
+        command=(f"sieve inspect {input_path} --suite {suite_ref}"
+                 + (f" --reference {reference_path}"
+                    if reference_path is not None else "")),
         master_seed=master_seed, seed_tree=seed_tree,
         environment=environment_fingerprint(),
         input_path=str(input_path),
@@ -160,6 +200,12 @@ def run_inspect(input_path: str | Path,
     ]
     for c in ds.caveats:
         limitations.append(f"input caveat: {c}")
+    if reference is not None:
+        limitations.append(
+            f"figures overlay the empirical reference '{reference['label']}' "
+            f"(content sha256 {reference['content_hash'][:16]}…, "
+            f"{reference['n_obs']} obs) as visual context only; no "
+            "statistical comparison against it is performed")
 
     bundle = InspectBundle(
         bundle_id=uuid.uuid4(),
@@ -182,10 +228,19 @@ def run_inspect(input_path: str | Path,
                 json.loads(bundle.geometry.model_dump_json()))
     _write_json(run_dir / "figures.json",
                 [json.loads(f.model_dump_json()) for f in figures])
+    if reference is not None:
+        _write_json(run_dir / "reference_summary.json", {
+            "label": reference["label"],
+            "content_hash_sha256": reference["content_hash"],
+            "n_obs": reference["n_obs"],
+            "source_path_informational": str(reference_path),
+            "role": "figure overlay comparator (exploratory; no inference)"})
     render_inspect_report(run_dir / "report" / "index.html", bundle, run_dir)
 
     rels = ["manifest.json", "dataset_summary.json", "observations.parquet",
             "figures.json", "report/index.html"]
+    if reference is not None:
+        rels.append("reference_summary.json")
     rels += sorted(f"figures/{p.name}" for p in
                    (run_dir / "figures").glob("*.svg")) \
         if (run_dir / "figures").is_dir() else []

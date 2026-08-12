@@ -342,12 +342,21 @@ def _adequacy(spec: FigureSpec, ds: SimulationDataset
 
 
 def render_figures(ds: SimulationDataset, figure_refs: list[str],
-                   out_dir: str | Path) -> list[FigureResult]:
+                   out_dir: str | Path,
+                   reference: dict | None = None) -> list[FigureResult]:
     """Render every suite-declared figure; write SVGs under ``figures/``.
 
     One figure failing (bad data, bug) degrades that figure to a status —
     it never aborts the report (task §6).
+
+    ``reference`` (optional) is an empirical comparator series
+    ``{"r": ndarray, "label": str, "content_hash": str}``; figures that
+    support it draw its derived curve as a visual overlay. The overlay
+    never affects any status, and its identity is recorded in the sealed
+    figure parameters.
     """
+    import inspect as _inspect
+
     out_dir = Path(out_dir)
     fig_dir = out_dir / "figures"
     results: list[FigureResult] = []
@@ -372,8 +381,12 @@ def render_figures(ds: SimulationDataset, figure_refs: list[str],
             results.append(early_result)
             continue
         params = dict(spec.parameters)
+        kwargs = {}
+        if (reference is not None
+                and "reference" in _inspect.signature(fn).parameters):
+            kwargs["reference"] = reference
         try:
-            out: FigureOutput = fn(sub, params)
+            out: FigureOutput = fn(sub, params, **kwargs)
         except Exception as e:                      # degrade, never abort
             results.append(FigureResult(
                 figure_id=spec.figure_id, version=spec.version,

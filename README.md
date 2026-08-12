@@ -127,6 +127,28 @@ parameter diff next to the measured changes, and a versioned approval
 policy that routes review — never scores
 ([browse the frozen example](https://yuitokyouni.github.io/sieve/example-update/compare/report/index.html)).
 
+## Comparing against real markets
+
+Exploratory, any input size — overlay an index's daily returns on the
+diagnostic figures (visual context only; no status depends on it):
+
+```
+python tools/fetch_index_data.py ^N225 nikkei     # or bring your own CSV
+sieve inspect experiments/my_abm \
+    --reference data/index_cache/nikkei_daily.csv \
+    --reference-derive-return log --reference-label "Nikkei 225"
+```
+
+Confirmatory, for long daily series (~20+ years) — test against a single
+index with the experimental suites `nikkei-daily@0.1` / `spx-daily@0.1`
+(derived window statistics shipped, source hash recorded, inherited
+calibration disclosed), or against the six-index pool with
+`financial-daily@1.0`:
+
+```
+sieve test my_long_series.csv --suite nikkei-daily@0.1 --claim descriptive-market-dynamics
+```
+
 ## What a run produces
 
 ```

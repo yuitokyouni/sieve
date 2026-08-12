@@ -1,0 +1,29 @@
+claim_id: descriptive-market-dynamics
+version: "0.1"
+statement: >-
+  Simulated daily returns reproduce the descriptive dynamics of Nikkei 225
+  daily returns: heavy-tailed marginals, power-law tail weight, volatility
+  clustering and its persistence, sign-to-volatility asymmetry (leverage),
+  near-unit variance ratios, and empirically small drift.
+use_case: >-
+  Descriptive realism of an unconditional daily return stream against a
+  SINGLE market (Nikkei 225). NOT forecasting, NOT derivative pricing, NOT
+  policy counterfactuals. Experimental suite: the decision line's true
+  size is inherited from the six-index design and not re-measured.
+scope:
+  frequency: daily
+  window_length: 1000
+  markets: Nikkei 225
+required_dimensions:
+  - marginal_distribution
+  - tail_behavior
+  - volatility_dynamics
+  - leverage_asymmetry
+optional_dimensions:
+  - return_dependence
+  - drift_nonstationarity
+decision_policy: >-
+  Per-dimension statuses only. A FAIL on a required dimension is reported
+  as a finding with author questions; nothing aggregates across
+  dimensions. No baseline-blindness context is available in this suite
+  version (no baselines shipped).

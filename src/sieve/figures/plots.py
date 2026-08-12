@@ -36,6 +36,27 @@ _POOL_CAVEAT = ("standardized per run, then pooled across runs for this "
 _IID_BAND_CAVEAT = ("the +/-1.96/sqrt(n) band assumes an iid series and "
                     "UNDERSTATES uncertainty under volatility clustering")
 
+REF_COLOR = SERIES[2]          # aqua: reserved for the empirical reference
+REF_DASH = "2,3"
+
+
+def _ref_label(reference: dict) -> str:
+    lab = str(reference.get("label", "reference"))
+    return f"ref: {lab[:24]}"
+
+
+def _ref_caveat(reference: dict) -> str:
+    return (f"reference overlay '{reference.get('label', 'reference')}' is "
+            "visual context only: no statistical comparison is made and no "
+            "status depends on it")
+
+
+def _ref_params(reference: dict) -> dict:
+    return {"reference": {
+        "label": str(reference.get("label", "reference")),
+        "content_hash": str(reference.get("content_hash", "")),
+        "n_obs": int(len(reference["r"]))}}
+
 
 @dataclass
 class FigureOutput:
@@ -154,7 +175,8 @@ def fig_return_path(ds: SimulationDataset, params: dict) -> FigureOutput:
 
 # ------------------------------------- B. marginal distribution (heavy tails)
 
-def fig_marginal_distribution(ds: SimulationDataset, params: dict
+def fig_marginal_distribution(ds: SimulationDataset, params: dict,
+                              reference: dict | None = None
                               ) -> FigureOutput:
     bins = int(params.get("bins", 61))
     z_max = float(params.get("z_range", 8.0))
@@ -176,6 +198,16 @@ def fig_marginal_distribution(ds: SimulationDataset, params: dict
     p1.line(list(gx), list(gpdf), color=SERIES[1], width=2.0,
             label="Gaussian", dash="6,3")
 
+    ref_extra: dict = {}
+    if reference is not None:
+        zr = C.standardize(reference["r"])
+        if zr is not None:
+            rdens, _ = np.histogram(zr, bins=edges, density=True)
+            rpos = rdens > 0
+            p1.line(list(centers[rpos]), list(rdens[rpos]), color=REF_COLOR,
+                    width=1.8, dash=REF_DASH, label=_ref_label(reference))
+            ref_extra = {"rdens": rdens}
+
     pos = dens > 0
     p2 = Plot(title="standardized returns — density (log y)", xlabel="z",
               ylabel="density", yscale="log",
@@ -185,6 +217,19 @@ def fig_marginal_distribution(ds: SimulationDataset, params: dict
     gpos = gpdf > 1e-12
     p2.line(list(gx[gpos]), list(gpdf[gpos]), color=SERIES[1], width=2.0,
             label="Gaussian", dash="6,3")
+    if ref_extra:
+        rdens = ref_extra["rdens"]
+        rpos = rdens > 0
+        p2.line(list(centers[rpos]), list(rdens[rpos]), color=REF_COLOR,
+                width=1.8, dash=REF_DASH, label=_ref_label(reference))
+
+    extra_params: dict = {}
+    if ref_extra:
+        caveats.append(_ref_caveat(reference))
+        extra_params = _ref_params(reference)
+    elif reference is not None:
+        caveats.append("reference overlay requested but the reference "
+                       "series is constant; overlay skipped")
 
     caveats += [
         _POOL_CAVEAT,
@@ -205,13 +250,15 @@ def fig_marginal_distribution(ds: SimulationDataset, params: dict
         n_obs_used=int(len(pool)),
         summary_values=_metric_summary(ds, ["excess_kurtosis"]),
         parameters={"bins": bins, "z_range": z_max,
-                    "comparator": "standard normal pdf"},
+                    "comparator": "standard normal pdf", **extra_params},
         caveats=caveats)
 
 
 # ------------------------------------------------- C. tail CCDF + Hill overlay
 
-def _tail_panel(tail: np.ndarray, side: str, ylabel: str, frac: float
+def _tail_panel(tail: np.ndarray, side: str, ylabel: str, frac: float,
+                ref_tail: np.ndarray | None = None,
+                reference: dict | None = None
                 ) -> tuple[str | None, dict | None, list[str]]:
     caveats: list[str] = []
     if len(tail) < 50:
@@ -239,6 +286,14 @@ def _tail_panel(tail: np.ndarray, side: str, ylabel: str, frac: float
              note=f"tail n={len(tail)}" + (f", Hill k={h['k']}" if h else ""))
     p.scatter(list(xs_d), list(sv_d), radius=2.2, opacity=0.8,
               label="empirical CCDF")
+    if ref_tail is not None and len(ref_tail) >= 50 and reference is not None:
+        rxs, rsv = C.ccdf_points(ref_tail)
+        # clip to the simulated panel's x-range: the reference's near-zero
+        # values would stretch the log axis and squash the tail region
+        rkeep = rxs >= xs.min()
+        if rkeep.sum() >= 5:
+            p.line(list(rxs[rkeep]), list(rsv[rkeep]), color=REF_COLOR,
+                   width=1.6, dash=REF_DASH, label=_ref_label(reference))
     if h:
         # slope -alpha through the Hill threshold point in log-log space
         sv_at_k = h["k"] / h["n_tail"]
@@ -257,7 +312,8 @@ def _tail_panel(tail: np.ndarray, side: str, ylabel: str, frac: float
     return p.render(), h, caveats
 
 
-def fig_tail_ccdf(ds: SimulationDataset, params: dict) -> FigureOutput:
+def fig_tail_ccdf(ds: SimulationDataset, params: dict,
+                  reference: dict | None = None) -> FigureOutput:
     frac = float(params.get("tail_frac", 0.05))
     # scale-only normalization (no centering): Hill is shift-variant, and
     # the overlay must estimate the same quantity as the hill_left/right
@@ -267,11 +323,22 @@ def fig_tail_ccdf(ds: SimulationDataset, params: dict) -> FigureOutput:
         return _insufficient(
             f"only {len(pool)} standardized observations (need >= 300 for "
             "tail evidence)", caveats=caveats)
+    ref_pool = None
+    extra_params: dict = {}
+    if reference is not None:
+        rs = reference["r"].std()
+        if np.isfinite(rs) and rs > 0:
+            ref_pool = reference["r"] / rs        # scale-only, like the pool
+            caveats.append(_ref_caveat(reference))
+            extra_params = _ref_params(reference)
     panels = []
-    for side, tail, ylab in (
-            ("positive", pool[pool > 0], "P(Z >= x | Z > 0)"),
-            ("negative (|z|)", -pool[pool < 0], "P(-Z >= x | Z < 0)")):
-        svg, _h, cv = _tail_panel(tail, side, ylab, frac)
+    for side, tail, ylab, rtail in (
+            ("positive", pool[pool > 0], "P(Z >= x | Z > 0)",
+             None if ref_pool is None else ref_pool[ref_pool > 0]),
+            ("negative (|z|)", -pool[pool < 0], "P(-Z >= x | Z < 0)",
+             None if ref_pool is None else -ref_pool[ref_pool < 0])):
+        svg, _h, cv = _tail_panel(tail, side, ylab, frac, ref_tail=rtail,
+                                  reference=reference)
         caveats += cv
         if svg:
             panels.append(svg)
@@ -293,14 +360,16 @@ def fig_tail_ccdf(ds: SimulationDataset, params: dict) -> FigureOutput:
         n_obs_used=int(len(pool)),
         summary_values=_metric_summary(ds, ["hill_left", "hill_right"]),
         parameters={"tail_frac": frac, "min_tail_points": 50,
-                    "display_thinning": "log-rank, display only"},
+                    "display_thinning": "log-rank, display only",
+                    **extra_params},
         caveats=caveats)
 
 
 # ------------------------------------------------------------ D. return ACF
 
 def _acf_figure(ds: SimulationDataset, transform, title: str, ylabel: str,
-                max_lag: int) -> tuple[Plot, list[np.ndarray], int]:
+                max_lag: int, reference: dict | None = None
+                ) -> tuple[Plot, list[np.ndarray], int]:
     by_run = ds.returns_by_run()
     lag_cap = min(max_lag, min(len(r) for r in by_run.values()) // 4)
     curves = [C.acf_curve(transform(r), lag_cap) for r in by_run.values()]
@@ -321,17 +390,24 @@ def _acf_figure(ds: SimulationDataset, transform, title: str, ylabel: str,
             p.line(lags, list(c), width=1.8,
                    label="per-run ACF" if len(curves) > 1 else None,
                    opacity=0.9)
+    if reference is not None:
+        rcurve = C.acf_curve(transform(reference["r"]),
+                             min(lag_cap, len(reference["r"]) // 4))
+        p.line(list(range(1, len(rcurve) + 1)), list(rcurve),
+               color=REF_COLOR, width=1.6, dash=REF_DASH,
+               label=_ref_label(reference))
     p.hline(0, color="#8a94a3", dash=None, width=1.0)
     return p, curves, lag_cap
 
 
-def fig_return_acf(ds: SimulationDataset, params: dict) -> FigureOutput:
+def fig_return_acf(ds: SimulationDataset, params: dict,
+                   reference: dict | None = None) -> FigureOutput:
     if _all_degenerate(ds):
         return _insufficient("every run is constant; the ACF is undefined")
     max_lag = int(params.get("max_lag", 50))
     p, curves, lag_cap = _acf_figure(ds, lambda r: r,
                                      "autocorrelation of returns",
-                                     "ACF(r)", max_lag)
+                                     "ACF(r)", max_lag, reference=reference)
     med_lag1 = float(np.median([c[0] for c in curves]))
     return FigureOutput(
         svg=p.render(), status=OBSERVED, n_runs_used=ds.n_runs,
@@ -339,25 +415,34 @@ def fig_return_acf(ds: SimulationDataset, params: dict) -> FigureOutput:
         summary_values={"acf_return_lag1" + ("_run_median"
                                              if ds.n_runs > 1 else ""):
                         _fin(med_lag1)},
-        parameters={"max_lag": max_lag, "effective_max_lag": lag_cap},
+        parameters={"max_lag": max_lag, "effective_max_lag": lag_cap,
+                    **({} if reference is None else _ref_params(reference))},
         caveats=[_IID_BAND_CAVEAT,
-                 "read the decay shape across lags, not a single lag"])
+                 "read the decay shape across lags, not a single lag"]
+        + ([] if reference is None else [_ref_caveat(reference)]))
 
 
 # -------------------------------------------------------- E. volatility ACF
 
-def fig_volatility_acf(ds: SimulationDataset, params: dict) -> FigureOutput:
+def fig_volatility_acf(ds: SimulationDataset, params: dict,
+                       reference: dict | None = None) -> FigureOutput:
     if _all_degenerate(ds):
         return _insufficient("every run is constant; the ACF is undefined")
     max_lag = int(params.get("max_lag", 100))
     p1, curves_abs, lag_cap = _acf_figure(
-        ds, np.abs, "autocorrelation of |r|", "ACF(|r|)", max_lag)
+        ds, np.abs, "autocorrelation of |r|", "ACF(|r|)", max_lag,
+        reference=reference)
     p2, _c2, _ = _acf_figure(
-        ds, lambda r: r ** 2, "autocorrelation of r^2", "ACF(r^2)", max_lag)
+        ds, lambda r: r ** 2, "autocorrelation of r^2", "ACF(r^2)", max_lag,
+        reference=reference)
     for p in (p1, p2):
         p.vline(20, color=ACCENT_GRAY, dash="2,3")
     caveats = ["vertical mark at lag 20: the acf_abs_20 metric's lag",
                _IID_BAND_CAVEAT]
+    ref_extra: dict = {}
+    if reference is not None:
+        caveats.append(_ref_caveat(reference))
+        ref_extra = _ref_params(reference)
 
     # log-log view of ACF(|r|); nonpositive values cannot be shown
     med = (C.pointwise_quantiles(curves_abs)[1] if len(curves_abs) >= 3
@@ -384,13 +469,15 @@ def fig_volatility_acf(ds: SimulationDataset, params: dict) -> FigureOutput:
         svg=panel_grid(panels, ncols=2), status=OBSERVED,
         n_runs_used=ds.n_runs, n_obs_used=ds.n_obs_total,
         summary_values=_metric_summary(ds, ["acf_abs_1", "acf_abs_20"]),
-        parameters={"max_lag": max_lag, "effective_max_lag": lag_cap},
+        parameters={"max_lag": max_lag, "effective_max_lag": lag_cap,
+                    **ref_extra},
         caveats=caveats)
 
 
 # --------------------------------------------------- G. aggregation profile
 
-def fig_aggregation_profile(ds: SimulationDataset, params: dict
+def fig_aggregation_profile(ds: SimulationDataset, params: dict,
+                            reference: dict | None = None
                             ) -> FigureOutput:
     horizons = list(params.get("horizons", (1, 2, 5, 10, 20, 40, 80, 160)))
     min_agg = int(params.get("min_aggregated_obs", 200))
@@ -427,6 +514,21 @@ def fig_aggregation_profile(ds: SimulationDataset, params: dict
            for dt in common]
     p.line(common, med, width=2.2,
            label="across-run median" if ds.n_runs > 1 else "kurtosis")
+    ref_extra: dict = {}
+    if reference is not None:
+        rr = reference["r"]
+        rx, ry = [], []
+        for dt in common:
+            agg = rr if dt == 1 else C.aggregate_returns(rr, dt)
+            if len(agg) >= min_agg:
+                k = C.excess_kurtosis_value(agg)
+                if np.isfinite(k):
+                    rx.append(dt)
+                    ry.append(float(k))
+        if rx:
+            p.line(rx, ry, color=REF_COLOR, width=1.6, dash=REF_DASH,
+                   label=_ref_label(reference))
+            ref_extra = _ref_params(reference)
     p.hline(0, color="#8a94a3", dash="4,3")
     caveats = [
         "the effective sample size shrinks with the horizon "
@@ -436,18 +538,22 @@ def fig_aggregation_profile(ds: SimulationDataset, params: dict
         "kurtosis -> 0 with growing horizon is consistent with aggregational "
         "Gaussianity but is not a test of it",
     ]
+    if ref_extra:
+        caveats.append(_ref_caveat(reference))
     return FigureOutput(
         svg=p.render(), status=OBSERVED, n_runs_used=ds.n_runs,
         n_obs_used=ds.n_obs_total,
         summary_values=_metric_summary(ds, ["excess_kurtosis"]),
         parameters={"horizons": horizons, "min_aggregated_obs": min_agg,
-                    "n_effective": {str(k): v for k, v in n_eff.items()}},
+                    "n_effective": {str(k): v for k, v in n_eff.items()},
+                    **ref_extra},
         caveats=caveats)
 
 
 # ------------------------------------------------------ J. leverage kernel
 
-def fig_leverage_kernel(ds: SimulationDataset, params: dict) -> FigureOutput:
+def fig_leverage_kernel(ds: SimulationDataset, params: dict,
+                        reference: dict | None = None) -> FigureOutput:
     if _all_degenerate(ds):
         return _insufficient("every run is constant; correlations are "
                              "undefined")
@@ -473,6 +579,12 @@ def fig_leverage_kernel(ds: SimulationDataset, params: dict) -> FigureOutput:
         for c in curves:
             p.line(tl, list(c), width=1.8,
                    label="per-run c(tau)" if len(curves) > 1 else None)
+    ref_extra: dict = {}
+    if reference is not None:
+        _rt, rc = C.leverage_curve(reference["r"], max_tau)
+        p.line(tl, list(rc), color=REF_COLOR, width=1.6, dash=REF_DASH,
+               label=_ref_label(reference))
+        ref_extra = _ref_params(reference)
     p.hline(0, color="#8a94a3", dash=None, width=1.0)
     p.vline(0, color=ACCENT_GRAY, dash="2,3")
     caveats = [
@@ -485,18 +597,21 @@ def fig_leverage_kernel(ds: SimulationDataset, params: dict) -> FigureOutput:
         "recorded metric blind spot: the lag-count knob moves the scalar "
         "level by ~0.94 IQR",
     ]
+    if ref_extra:
+        caveats.append(_ref_caveat(reference))
     return FigureOutput(
         svg=p.render(), status=OBSERVED, n_runs_used=ds.n_runs,
         n_obs_used=ds.n_obs_total,
         summary_values=_metric_summary(ds, ["leverage"]),
         parameters={"max_tau": max_tau, "metric_lags": metric_lags,
-                    "definition": "corr(r_t, |r_(t+tau)|)"},
+                    "definition": "corr(r_t, |r_(t+tau)|)", **ref_extra},
         caveats=caveats)
 
 
 # ------------------------------------- drift / variance-ratio diagnostic
 
-def fig_drift_variance(ds: SimulationDataset, params: dict) -> FigureOutput:
+def fig_drift_variance(ds: SimulationDataset, params: dict,
+                       reference: dict | None = None) -> FigureOutput:
     if _all_degenerate(ds):
         return _insufficient("every run is constant; drift/VR are undefined")
     qs = list(params.get("q_values", (2, 5, 10, 20, 40)))
@@ -526,6 +641,12 @@ def fig_drift_variance(ds: SimulationDataset, params: dict) -> FigureOutput:
         for c in vr_curves:
             p2.line(qs, list(c), width=1.8,
                     label="per-run VR" if len(vr_curves) > 1 else None)
+    ref_extra: dict = {}
+    if reference is not None:
+        rvr = [C.variance_ratio(reference["r"], q) for q in qs]
+        p2.line(qs, rvr, color=REF_COLOR, width=1.6, dash=REF_DASH,
+                label=_ref_label(reference))
+        ref_extra = _ref_params(reference)
     p2.hline(1.0, color="#8a94a3", dash="4,3")
     caveats = [
         "drift here is per-run mean/sd in step units — compare against "
@@ -533,11 +654,15 @@ def fig_drift_variance(ds: SimulationDataset, params: dict) -> FigureOutput:
         "VR(q) needs q*10 observations per point; short runs drop the "
         "largest q values to NaN",
     ]
+    if ref_extra:
+        caveats.append(_ref_caveat(reference)
+                       + "; the reference VR curve appears on the right "
+                         "panel only (the left panel is per-run drift)")
     return FigureOutput(
         svg=panel_grid([p1.render(), p2.render()], ncols=2),
         status=OBSERVED, n_runs_used=ds.n_runs, n_obs_used=ds.n_obs_total,
         summary_values=_metric_summary(ds, ["drift", "variance_ratio_20"]),
-        parameters={"q_values": qs},
+        parameters={"q_values": qs, **ref_extra},
         caveats=caveats)
 
 
