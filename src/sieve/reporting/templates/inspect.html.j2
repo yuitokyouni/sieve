@@ -47,7 +47,10 @@
   .figwrap { overflow-x:auto; margin:.4rem 0 .8rem;
              border:1px solid var(--rule); border-radius:4px;
              background:#fff; }
-  .figwrap svg { display:block; max-width:100%; height:auto; }
+  /* direct child only: a descendant selector would also hit the
+     nested panel <svg x= y=> elements inside panel grids, override
+     their attribute geometry and scramble multi-row layouts */
+  .figwrap > svg { display:block; max-width:100%; height:auto; }
   .kv { display:grid; grid-template-columns: max-content 1fr;
         gap:.15rem .8rem; font-size:.88em; margin:.5rem 0; }
   .kv dt { color:var(--muted); }

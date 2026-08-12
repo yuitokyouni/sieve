@@ -10,6 +10,15 @@
   points while the standalone SVG was complete). Clip ids are now scoped
   per figure (`<figure_id>-cN`, appearance-ordered so re-renders stay
   byte-identical under the seal).
+- **Fix: multi-row panel grids no longer collapse in the HTML report.**
+  The report stylesheet's `.figwrap svg { max-width:100%; height:auto }`
+  is a descendant selector, so it also hit the nested panel `<svg x= y=>`
+  elements inside `panel_grid` output, overrode their attribute geometry
+  and scrambled multi-row layouts (return_path's second row rendered
+  half-cut with a hazy bottom edge — visible in the README screenshot).
+  Scoped to the direct child (`.figwrap > svg`); nested panels keep
+  their attribute geometry. `docs/report-inspect.png` regenerated from
+  `examples/abm_ensemble` with both rendering fixes in.
 - **Data pushed outside an explicit axis limit is dimmed, not erased.**
   When a plot declares `xlim`/`ylim` and data crosses it, the crossed
   boundary is drawn as a dashed rule and the out-of-range data continues
