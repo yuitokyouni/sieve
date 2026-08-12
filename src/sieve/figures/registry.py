@@ -388,17 +388,26 @@ def render_figures(ds: SimulationDataset, figure_refs: list[str],
             kwargs["reference"] = reference
         try:
             out: FigureOutput = fn(sub, params, **kwargs)
-        except Exception as e:                      # degrade, never abort
+        except Exception as e:      # degrade to ERROR, never abort the rest
+            # An exception out of a figure implementation is a sieve bug,
+            # not a data property: it must never be reported as
+            # INSUFFICIENT (data inadequacy). The exception type and the
+            # figure version are recorded in the sealed result.
             results.append(FigureResult(
                 figure_id=spec.figure_id, version=spec.version,
                 display_name=spec.display_name,
                 stylized_fact=spec.stylized_fact,
                 reading_guide=spec.reading_guide,
-                status=ExploratoryStatus.INSUFFICIENT,
+                status=ExploratoryStatus.ERROR,
                 related_metrics=spec.related_metrics,
-                parameters=spec.parameters, caveats=gate_caveats,
-                note=f"figure computation failed ({type(e).__name__}: {e}); "
-                     "reported as-is rather than fabricated"))
+                parameters={**spec.parameters,
+                            "internal_error": {
+                                "exception_type": type(e).__name__,
+                                "figure_version": spec.version}},
+                caveats=gate_caveats,
+                note=f"internal error, not a data property "
+                     f"({type(e).__name__}: {e}); please report this as a "
+                     "sieve bug"))
             continue
         artifact_path = None
         if out.svg is not None:

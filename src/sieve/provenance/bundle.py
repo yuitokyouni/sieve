@@ -26,7 +26,7 @@ because "this bundle was modified" is a result, not an exception (spec §8).
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from sieve.core.hashing import sha256_bytes, sha256_file
 from sieve.core.models import (
@@ -35,6 +35,28 @@ from sieve.core.models import (
     InspectBundle,
 )
 from sieve.core.serialization import canonical_bytes, hashable_bytes, to_jsonable
+
+
+def safe_artifact_path(base: str | Path, rel: str) -> Path:
+    """Resolve a bundle-declared artifact path, confined to ``base``.
+
+    Bundles can come from third parties: a crafted ``artifact_path`` /
+    ``artifact_index`` entry like ``../../outside.svg`` (or an absolute
+    path, a drive prefix, or a symlink escaping the run directory) must
+    never make sieve read outside the run directory. Raises ``ValueError``
+    on any escape; callers turn that into a verify problem or skip.
+    """
+    pp = PurePosixPath(rel)
+    if (pp.is_absolute() or "\\" in rel or ".." in pp.parts
+            or (pp.parts and pp.parts[0].endswith(":"))):
+        raise ValueError(f"unsafe artifact path {rel!r}: absolute, drive or "
+                         "parent-directory components are not allowed")
+    base = Path(base).resolve()
+    target = (base / pp).resolve()      # resolves symlink escapes too
+    if not target.is_relative_to(base):
+        raise ValueError(f"unsafe artifact path {rel!r}: resolves outside "
+                         "the run directory")
+    return target
 
 
 def seal(bundle: EvidenceBundle) -> EvidenceBundle:
@@ -130,8 +152,18 @@ def verify(run_dir_or_bundle: str | Path) -> list[str]:
     else:
         problems.append("missing bundle.sha256 sidecar")
 
-    for ref in bundle.artifact_index:
-        ap = base / ref.path
+    problems += _verify_artifacts(bundle.artifact_index, base)
+    return problems
+
+
+def _verify_artifacts(artifact_index, base: Path) -> list[str]:
+    problems: list[str] = []
+    for ref in artifact_index:
+        try:
+            ap = safe_artifact_path(base, ref.path)
+        except ValueError as e:
+            problems.append(str(e))
+            continue
         if not ap.exists():
             problems.append(f"missing artifact {ref.path}")
         elif sha256_file(ap) != ref.sha256:
@@ -163,10 +195,5 @@ def _verify_inspect(bundle_path: Path, base: Path) -> list[str]:
     else:
         problems.append("missing bundle.sha256 sidecar")
 
-    for ref in bundle.artifact_index:
-        ap = base / ref.path
-        if not ap.exists():
-            problems.append(f"missing artifact {ref.path}")
-        elif sha256_file(ap) != ref.sha256:
-            problems.append(f"artifact modified: {ref.path}")
+    problems += _verify_artifacts(bundle.artifact_index, base)
     return problems

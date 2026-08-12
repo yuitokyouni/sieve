@@ -149,6 +149,9 @@ new suites under a new id, new schema files.
 - `NOT_APPLICABLE` — a required column or geometry is absent (e.g. no
   `volume`).
 - `NOT_TESTED` — the figure is registered but not implemented/enabled.
+- `ERROR` — the diagnostic's *implementation* raised: a bug in sieve, never
+  a statement about the data. The report is still written, the exception
+  type is recorded in the sealed bundle, and `sieve inspect` exits 1.
 
 No count, fraction, or aggregate over figure statuses appears anywhere.
 

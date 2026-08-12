@@ -53,12 +53,23 @@ def read_returns(path: str | Path) -> tuple[np.ndarray, list[str]]:
                 vals.append(float(row[ri]))
             except (ValueError, IndexError) as e:
                 raise InputError(f"line {ln}: bad return value {row!r}") from e
-            ts.append(row[ti] if ti is not None and ti < len(row) else "")
+            ts.append(row[ti].strip() if ti is not None and ti < len(row)
+                      else "")
     r = np.asarray(vals, dtype=float)
     if len(r) < 50:
         raise InputError(f"only {len(r)} returns; need at least 50")
     if not np.isfinite(r).all():
         raise InputError("non-finite values in return column")
+    if ti is not None:
+        # same timestamp contract as the research adapter: ISO-8601, no
+        # empty cells, strictly increasing — time-directional diagnostics
+        # must never run on a scrambled arrow of time
+        from sieve.core.dataset import InputError as _CoreInputError
+        from sieve.core.dataset import validate_timestamps
+        try:
+            validate_timestamps(path.stem, ts)
+        except _CoreInputError as e:
+            raise InputError(str(e)) from None
     return r, ts
 
 
@@ -79,7 +90,18 @@ def load_input(
     meta: dict = {}
     mpath = (input_path if input_path.is_dir() else input_path.parent) / "manifest.yaml"
     if mpath.exists():
-        meta = yaml.safe_load(mpath.read_text()) or {}
+        try:
+            meta = yaml.safe_load(mpath.read_text()) or {}
+        except yaml.YAMLError as e:
+            raise InputError(f"{mpath}: malformed YAML — {e}") from None
+        if not isinstance(meta, dict):
+            raise InputError(f"{mpath}: manifest must be a YAML mapping")
+        from sieve.adapters.dataset import validate_manifest
+        from sieve.core.dataset import InputError as _CoreInputError
+        try:
+            validate_manifest(meta, mpath)
+        except _CoreInputError as e:
+            raise InputError(str(e)) from None
 
     params = dict(meta.get("parameters", {}))
     model = ModelManifest(

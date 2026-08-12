@@ -45,6 +45,7 @@ class ExploratoryStatus(str, Enum):
     INSUFFICIENT = "INSUFFICIENT"      # below the figure's declared minimum
     NOT_APPLICABLE = "NOT_APPLICABLE"  # required column/geometry absent
     NOT_TESTED = "NOT_TESTED"          # registered but not implemented/enabled
+    ERROR = "ERROR"                    # sieve-internal bug, never a data fact
 
 
 class Severity(str, Enum):

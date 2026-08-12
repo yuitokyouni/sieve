@@ -36,6 +36,7 @@
   .st.NOT_APPLICABLE { color: var(--na); background:var(--panel); }
   .st.NOT_TESTED { color: var(--plan); background:var(--panel);
                    border-style:dashed; }
+  .st.ERROR { color: #a01818; border-color:#e0b4b4; background:#faeaea; }
   .card { border:1px solid var(--rule); border-radius:6px; margin:1.2rem 0;
           overflow:hidden; }
   .card-head { display:flex; flex-wrap:wrap; gap:.6rem; align-items:baseline;
@@ -146,6 +147,9 @@ Status vocabulary (deliberately weaker than PASS/FAIL):
       observable or geometry is absent from the input.</li>
   <li><span class="st NOT_TESTED">NOT_TESTED</span> — the diagnostic is
       registered as a roadmap item and not implemented in this version.</li>
+  <li><span class="st ERROR">ERROR</span> — the diagnostic's implementation
+      failed: a bug in sieve, <b>not</b> a property of your data. Please
+      report it.</li>
 </ul>
 </div>
 
@@ -186,8 +190,16 @@ summaries never replace the curve.</p>
           <code>{{ k }}</code> = {{ "%.4g"|format(v) if v is not none else "n/a" }}{{ " · " if not loop.last }}
         {% endfor %}</dd>
       {% endif %}
+      {% set ref = f.parameters.get("reference") %}
+      {% if ref %}
+      <dt>Reference comparator</dt><dd>overlay '{{ ref.get("label") }}'
+          — content sha256 <code>{{ ref.get("content_hash", "")[:16] }}…</code>,
+          {{ ref.get("n_obs") }} obs;
+          visual context only, not used for any inference</dd>
+      {% else %}
       <dt>Reference comparator</dt><dd>none — exploratory suite ships no
           reference distributions</dd>
+      {% endif %}
       {% if f.parameters %}
       <dt>Parameters</dt><dd><code>{{ f.parameters|compact_json }}</code></dd>
       {% endif %}
@@ -246,7 +258,7 @@ per-run value is in <code>observations.parquet</code>.</p>
 
 <h2>6 · What was not observed, and why</h2>
 {% set gaps = b.figures|selectattr("status.value", "in",
-              ["NOT_APPLICABLE", "NOT_TESTED", "INSUFFICIENT"])|list %}
+              ["NOT_APPLICABLE", "NOT_TESTED", "INSUFFICIENT", "ERROR"])|list %}
 {% if gaps %}
 <table>
   <tr><th>diagnostic</th><th>status</th><th>reason</th></tr>

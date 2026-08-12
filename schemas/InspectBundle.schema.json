@@ -135,7 +135,8 @@
         "OBSERVED",
         "INSUFFICIENT",
         "NOT_APPLICABLE",
-        "NOT_TESTED"
+        "NOT_TESTED",
+        "ERROR"
       ],
       "title": "ExploratoryStatus",
       "type": "string"
