@@ -4,7 +4,7 @@ Everything durable is a versioned, hashable artifact; nothing anywhere
 aggregates evidence into a single score.
 """
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 from sieve.api import from_arrays, from_dataframe, from_runs  # noqa: E402
 

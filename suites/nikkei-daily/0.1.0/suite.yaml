@@ -1,0 +1,50 @@
+# nikkei-daily@0.1.0 — descriptive validation of daily Nikkei 225 returns.
+# EXPERIMENTAL single-index suite built by tools/build_index_suite.py.
+# Immutable once published: suite_hash covers this file + shipped data.
+
+suite_id: nikkei-daily
+version: 0.1.0
+
+claim_types:
+  - descriptive
+
+reference:
+  dataset: >-
+    Nikkei 225 daily log returns, unit-sd scaled; 26 derived windows of
+    1000 observations (stride 250) spanning
+    1996-08-13 - 2026-03-16, with 1450-day
+    calendar blocks.
+  window_length: 1000
+  stride: 250
+  n_windows: 26
+  calendar_block_days: 1450
+  provenance: >-
+    Shipped as frozen derived window statistics (reference_stats.json)
+    built from Yahoo Finance daily closes. Raw closes are not
+    redistributed; the sha256 of the fetched timestamp,close CSV is
+    recorded so anyone re-fetching the same span can verify they hold the
+    same source.
+
+metrics:
+  - excess_kurtosis@1
+  - hill_left@1
+  - hill_right@1
+  - acf_abs_1@1
+  - acf_abs_20@1
+  - leverage@1
+  - variance_ratio_20@1
+  - drift@1
+
+baselines: []
+
+inference:
+  method: block_bootstrap_calendar
+  alpha: 0.01
+  alpha_provenance: >-
+    INHERITED, NOT RE-MEASURED: the nominal 0.01 line was calibrated on
+    financial-daily@1.0.0's six-index reference design (measured true size
+    3-5%). This single-index suite has fewer windows and one market; its
+    true size has not been measured, so treat decisions as experimental
+    until a calibration run is recorded.
+  n_draw: 2000
+  multiple_testing: holm

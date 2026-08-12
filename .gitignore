@@ -8,3 +8,4 @@ build/
 .sieve/
 .venv/
 examples/model_update/*/returns.csv
+data/index_cache/

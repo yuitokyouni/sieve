@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.5.0 — 2026-08-12
+
+Comparison against real daily returns, both exploratory and confirmatory.
+
+- **`sieve inspect --reference SERIES`**: overlay an empirical comparator
+  (e.g. an index's daily returns; `--reference-derive-return log` for
+  price-only files, `--reference-label "Nikkei 225"` to name it) on the
+  marginal distribution, tail CCDFs, return/volatility ACFs, aggregation
+  profile, leverage kernel and VR(q) figures. The overlay is visual
+  context only: it never affects any status, and its identity (content
+  hash, label, n_obs) is recorded in the sealed figure parameters plus a
+  `reference_summary.json` artifact. Default labels are content-derived
+  (no path leaks into the seal); multi-run references and undeclared
+  price derivations are refused.
+- **Single-index confirmatory suites `nikkei-daily@0.1.0` and
+  `spx-daily@0.1.0`** (experimental): ~26/27 derived windows of 1000
+  daily observations (stride 250, 1450-day calendar blocks) from Yahoo
+  Finance closes of the Nikkei 225 / S&P 500, built by
+  `tools/build_index_suite.py` from `tools/fetch_index_data.py` caches.
+  Raw closes are not redistributed; the source CSV sha256 is recorded.
+  Disclosed honestly in the manifests: the alpha=0.01 line's calibration
+  is INHERITED from the six-index design and not re-measured, and no
+  baseline distributions ship (no blindness context in reports). Usage:
+  `sieve test LONG_SERIES --suite nikkei-daily@0.1 --claim
+  descriptive-market-dynamics`.
+- Frozen examples re-pinned for the version bump (statuses and KS values
+  unchanged; the seal covers `sieve_version`).
+
 ## 0.4.0 — 2026-08-10
 
 Direction change: from an outward-facing ERM/ESG-framed product to a
