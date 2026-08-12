@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+- **Fix: figure SVGs no longer clip each other inside the HTML report.**
+  Every figure defined its clipPath as `id="c"`; SVG ids are
+  document-global once the report inlines the figures, so `url(#c)`
+  resolved to the *first* figure's plot rectangle and later figures lost
+  arbitrary regions (e.g. the VR(q) median visually ended after two
+  points while the standalone SVG was complete). Clip ids are now scoped
+  per figure (`<figure_id>-cN`, appearance-ordered so re-renders stay
+  byte-identical under the seal).
+- **Data pushed outside an explicit axis limit is dimmed, not erased.**
+  When a plot declares `xlim`/`ylim` and data crosses it, the crossed
+  boundary is drawn as a dashed rule and the out-of-range data continues
+  into a narrow gutter at half opacity, with an in-figure note — a
+  silent hard clip would misread as "the data ends here". No current
+  figure sets explicit limits, so shipped reports change only by the id
+  scoping.
+
 ## 0.5.0 — 2026-08-12
 
 Comparison against real daily returns, both exploratory and confirmatory.

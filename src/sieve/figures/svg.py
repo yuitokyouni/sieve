@@ -17,7 +17,9 @@ Visual rules (kept small on purpose):
 
 from __future__ import annotations
 
+import itertools
 import math
+import re
 from dataclasses import dataclass, field
 
 INK = "#14181f"        # primary text
@@ -78,6 +80,19 @@ def log_ticks(lo: float, hi: float) -> list[float]:
     hi_e = math.ceil(math.log10(hi))
     return [10.0 ** e for e in range(lo_e, hi_e + 1)
             if lo / 1.001 <= 10.0 ** e <= hi * 1.001]
+
+
+# Width in px of the strip beyond an explicit axis limit in which
+# out-of-range data stays visible (at half opacity) instead of vanishing.
+_GUTTER = 10.0
+
+# Clip-path ids must be unique across every SVG that can end up inlined in
+# one HTML document (report/index.html inlines every figure): duplicated ids
+# make url(#...) resolve to the FIRST clipPath in the document, so later
+# figures get clipped by another figure's plot rectangle and lose arbitrary
+# regions of their data. A process-wide counter keeps ids unique and — with
+# the deterministic figure render order — reproducible.
+_CLIP_IDS = itertools.count(1)
 
 
 @dataclass
@@ -308,44 +323,93 @@ class Plot:
                          f'stroke="{color}" stroke-width="{width}"'
                          f'{dash_attr}/>')
 
-        clip_id = "c"
+        def emit_series(out: list[str], opacity_scale: float = 1.0) -> None:
+            for s in self.series:
+                op = s.opacity * opacity_scale
+                if s.kind == "band":
+                    fwd = [f"{_n(tx(a))},{_n(ty(b))}"
+                           for a, b in zip(s.x, s.y2)]
+                    back = [f"{_n(tx(a))},{_n(ty(b))}"
+                            for a, b in zip(reversed(s.x), reversed(s.y))]
+                    out.append(f'<polygon points="{" ".join(fwd + back)}" '
+                               f'fill="{s.color}" opacity="{op}" '
+                               f'stroke="none"/>')
+                elif s.kind == "bars":
+                    base, wf = s.y2
+                    bw = (iw / max(len(s.x), 1)) * wf if len(s.x) <= 1 else \
+                        abs(tx(s.x[1]) - tx(s.x[0])) * wf
+                    for cx, h in zip(s.x, s.y):
+                        top = ty(max(h, base) if self.yscale == "linear"
+                                 else h)
+                        bot = (ty(base) if self.yscale == "linear"
+                               else m_top + ih)
+                        out.append(f'<rect x="{_n(tx(cx) - bw / 2)}" '
+                                   f'y="{_n(min(top, bot))}" '
+                                   f'width="{_n(bw)}" '
+                                   f'height="{_n(abs(bot - top))}" rx="1.5" '
+                                   f'fill="{s.color}" opacity="{op}" '
+                                   f'stroke="{SURFACE}" stroke-width="1"/>')
+                elif s.kind == "line":
+                    pts = " ".join(f"{_n(tx(a))},{_n(ty(b))}"
+                                   for a, b in zip(s.x, s.y))
+                    dash = f' stroke-dasharray="{s.dash}"' if s.dash else ""
+                    out.append(f'<polyline points="{pts}" fill="none" '
+                               f'stroke="{s.color}" stroke-width="{s.width}" '
+                               f'opacity="{op}" stroke-linejoin="round" '
+                               f'stroke-linecap="round"{dash}/>')
+                elif s.kind == "scatter":
+                    for a, b in zip(s.x, s.y):
+                        out.append(f'<circle cx="{_n(tx(a))}" '
+                                   f'cy="{_n(ty(b))}" '
+                                   f'r="{s.radius}" fill="{s.color}" '
+                                   f'opacity="{op}"/>')
+
+        # data that an explicit xlim/ylim pushes outside the axis range is
+        # never silently erased: it is drawn into a narrow gutter beyond the
+        # boundary at half opacity, and the crossed boundary is marked with a
+        # dashed rule. Without explicit limits the domain always covers the
+        # data and no gutter appears.
+        data_xs: list[float] = []
+        data_ys: list[float] = []
+        for s in self.series:
+            if s.kind == "vspan":
+                continue
+            data_xs.extend(s.x)
+            data_ys.extend(s.y)
+            if s.kind == "band":
+                data_ys.extend(s.y2 or [])
+        over_bottom = bool(self._ylim and data_ys and min(data_ys) < y0)
+        over_top = bool(self._ylim and data_ys and max(data_ys) > y1)
+        over_left = bool(self._xlim and data_xs and min(data_xs) < x0)
+        over_right = bool(self._xlim and data_xs and max(data_xs) > x1)
+        overflow = over_bottom or over_top or over_left or over_right
+
+        clip_id = f"sv{next(_CLIP_IDS)}"
         e.append(f'<clipPath id="{clip_id}"><rect x="{_n(m_left)}" '
                  f'y="{_n(m_top)}" width="{_n(iw)}" height="{_n(ih)}"/>'
                  f'</clipPath>')
+        if overflow:
+            g = _GUTTER
+            strips: list[str] = []
+            if over_bottom:
+                strips.append(f'<rect x="{_n(m_left)}" y="{_n(m_top + ih)}" '
+                              f'width="{_n(iw)}" height="{_n(g)}"/>')
+            if over_top:
+                strips.append(f'<rect x="{_n(m_left)}" y="{_n(m_top - g)}" '
+                              f'width="{_n(iw)}" height="{_n(g)}"/>')
+            if over_left:
+                strips.append(f'<rect x="{_n(m_left - g)}" y="{_n(m_top)}" '
+                              f'width="{_n(g)}" height="{_n(ih)}"/>')
+            if over_right:
+                strips.append(f'<rect x="{_n(m_left + iw)}" y="{_n(m_top)}" '
+                              f'width="{_n(g)}" height="{_n(ih)}"/>')
+            e.append(f'<clipPath id="{clip_id}o">{"".join(strips)}'
+                     f'</clipPath>')
+            e.append(f'<g clip-path="url(#{clip_id}o)">')
+            emit_series(e, opacity_scale=0.5)
+            e.append("</g>")
         e.append(f'<g clip-path="url(#{clip_id})">')
-        for s in self.series:
-            if s.kind == "band":
-                fwd = [f"{_n(tx(a))},{_n(ty(b))}" for a, b in zip(s.x, s.y2)]
-                back = [f"{_n(tx(a))},{_n(ty(b))}"
-                        for a, b in zip(reversed(s.x), reversed(s.y))]
-                e.append(f'<polygon points="{" ".join(fwd + back)}" '
-                         f'fill="{s.color}" opacity="{s.opacity}" '
-                         f'stroke="none"/>')
-            elif s.kind == "bars":
-                base, wf = s.y2
-                bw = (iw / max(len(s.x), 1)) * wf if len(s.x) <= 1 else \
-                    abs(tx(s.x[1]) - tx(s.x[0])) * wf
-                for cx, h in zip(s.x, s.y):
-                    top = ty(max(h, base) if self.yscale == "linear" else h)
-                    bot = ty(base) if self.yscale == "linear" else m_top + ih
-                    e.append(f'<rect x="{_n(tx(cx) - bw / 2)}" '
-                             f'y="{_n(min(top, bot))}" width="{_n(bw)}" '
-                             f'height="{_n(abs(bot - top))}" rx="1.5" '
-                             f'fill="{s.color}" opacity="{s.opacity}" '
-                             f'stroke="{SURFACE}" stroke-width="1"/>')
-            elif s.kind == "line":
-                pts = " ".join(f"{_n(tx(a))},{_n(ty(b))}"
-                               for a, b in zip(s.x, s.y))
-                dash = f' stroke-dasharray="{s.dash}"' if s.dash else ""
-                e.append(f'<polyline points="{pts}" fill="none" '
-                         f'stroke="{s.color}" stroke-width="{s.width}" '
-                         f'opacity="{s.opacity}" stroke-linejoin="round" '
-                         f'stroke-linecap="round"{dash}/>')
-            elif s.kind == "scatter":
-                for a, b in zip(s.x, s.y):
-                    e.append(f'<circle cx="{_n(tx(a))}" cy="{_n(ty(b))}" '
-                             f'r="{s.radius}" fill="{s.color}" '
-                             f'opacity="{s.opacity}"/>')
+        emit_series(e)
         e.append("</g>")
 
         # axes on top
@@ -355,6 +419,32 @@ class Plot:
         e.append(f'<line x1="{_n(m_left)}" y1="{_n(m_top)}" '
                  f'x2="{_n(m_left)}" y2="{_n(m_top + ih)}" '
                  f'stroke="{RULE}" stroke-width="1"/>')
+
+        # crossed explicit limits: dash the crossed boundary so the reader
+        # sees exactly where the axis range ends and the dimmed gutter begins
+        if overflow:
+            dash = ' stroke-dasharray="3,3"'
+            if over_bottom or over_top:
+                ybs = ([m_top + ih] if over_bottom else []) + \
+                      ([m_top] if over_top else [])
+                for yb in ybs:
+                    e.append(f'<line x1="{_n(m_left)}" y1="{_n(yb)}" '
+                             f'x2="{_n(m_left + iw)}" y2="{_n(yb)}" '
+                             f'stroke="{MUTED}" stroke-width="1.2"{dash}/>')
+            if over_left or over_right:
+                xbs = ([m_left] if over_left else []) + \
+                      ([m_left + iw] if over_right else [])
+                for xb in xbs:
+                    e.append(f'<line x1="{_n(xb)}" y1="{_n(m_top)}" '
+                             f'x2="{_n(xb)}" y2="{_n(m_top + ih)}" '
+                             f'stroke="{MUTED}" stroke-width="1.2"{dash}/>')
+            note_y = (m_top - _GUTTER - 3
+                      if (over_top and not over_bottom)
+                      else m_top + ih + _GUTTER + 16)
+            e.append(f'<text x="{_n(m_left + iw)}" y="{_n(note_y)}" '
+                     f'text-anchor="end" font-size="9" fill="{MUTED}" '
+                     f'{_FONT}>data beyond the dashed axis limit is shown '
+                     f'dimmed</text>')
 
         if self.title:
             e.append(f'<text x="{_n(m_left)}" y="17" font-size="12.5" '
@@ -410,6 +500,25 @@ class Plot:
                             "dash" if s.dash else "solid"))
         # single-series plots need no legend; the title names the series
         return out if len(out) >= 2 else []
+
+
+def scope_ids(svg: str, scope: str) -> str:
+    """Rewrite internal element ids to a ``scope``-prefixed, order-derived
+    sequence.
+
+    Two jobs at once: (1) uniqueness — report pages inline many figure SVGs
+    into one HTML document, and SVG ids are document-global, so every figure
+    must carry its own namespace or url(#...) references cross-wire between
+    figures; (2) determinism — the raw ids come from a process-wide counter,
+    so re-rendering the same figure in one process would otherwise change
+    bytes, breaking the sealed-artifact reproducibility contract. Rewriting
+    to first-appearance order erases the counter state.
+    """
+    raw = re.findall(r'id="(sv\d+o?)"', svg)
+    for i, old in enumerate(dict.fromkeys(raw)):
+        svg = (svg.replace(f'id="{old}"', f'id="{scope}-c{i}"')
+                  .replace(f'url(#{old})', f'url(#{scope}-c{i})'))
+    return svg
 
 
 def _esc(s: str) -> str:

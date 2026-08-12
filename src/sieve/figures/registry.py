@@ -17,6 +17,7 @@ from sieve.core.enums import ExploratoryStatus
 from sieve.core.models import FigureResult, FigureSpec
 from sieve.figures import plots
 from sieve.figures.plots import FigureOutput
+from sieve.figures.svg import scope_ids
 
 _ENTRIES: dict[str, tuple[Callable | None, FigureSpec]] = {}
 
@@ -402,7 +403,8 @@ def render_figures(ds: SimulationDataset, figure_refs: list[str],
         artifact_path = None
         if out.svg is not None:
             fig_dir.mkdir(parents=True, exist_ok=True)
-            (fig_dir / f"{spec.figure_id}.svg").write_text(out.svg)
+            (fig_dir / f"{spec.figure_id}.svg").write_text(
+                scope_ids(out.svg, spec.figure_id))
             artifact_path = f"figures/{spec.figure_id}.svg"
         results.append(FigureResult(
             figure_id=spec.figure_id, version=spec.version,

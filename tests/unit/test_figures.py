@@ -162,3 +162,52 @@ def test_decimation_preserves_extremes():
     _, dec = C.decimate_minmax(y, 1000)
     assert dec.max() == 25.0
     assert dec.min() == -25.0
+
+
+def test_clip_ids_unique_across_figures(single_run, tmp_path):
+    """Report pages inline every figure SVG into one HTML document, where
+    SVG ids are document-global: a duplicated clipPath id makes url(#...)
+    resolve to another figure's plot rectangle and silently erases data
+    (observed in the field as graphs 'losing their bottom half')."""
+    refs = [f"{s.figure_id}@1" for s in freg.all_specs() if s.implemented
+            and s.required_columns == ["return"]]
+    results = freg.render_figures(single_run, refs, tmp_path)
+    import re as _re
+    seen: set[str] = set()
+    for r in results:
+        svg = (tmp_path / r.artifact_path).read_text()
+        ids = _re.findall(r'id="([^"]+)"', svg)
+        assert len(ids) == len(set(ids)), (r.figure_id, "dup ids inside svg")
+        assert not (seen & set(ids)), (r.figure_id, "id reused across svgs")
+        assert not _re.findall(r'id="(?:c|sv\d+o?)"', svg), (
+            r.figure_id, "unscoped clip id leaked")
+        seen |= set(ids)
+
+
+def test_explicit_limit_overflow_dimmed_not_erased():
+    """Data outside an explicit ylim must stay visible: drawn once at half
+    opacity in the boundary gutter, with a dashed rule on the crossed edge
+    — never silently clipped away."""
+    from sieve.figures.svg import Plot
+
+    p = Plot(title="t").line([1, 2, 3, 4], [1.0, 0.8, 0.2, 0.05],
+                             width=2.0).ylim(0.5, 1.1)
+    svg = p.render()
+    assert svg.count("<polyline") == 2          # dim pass + main pass
+    assert 'opacity="0.5"' in svg               # dimmed overflow copy
+    assert 'stroke-dasharray="3,3"' in svg      # dashed boundary rule
+    assert "shown dimmed" in svg                # in-figure explanation
+    # without limit violations nothing changes
+    q = Plot(title="t").line([1, 2, 3], [1.0, 0.9, 0.8])
+    assert q.render().count("<polyline") == 1
+
+
+def test_svg_bytes_deterministic_after_id_scoping(single_run, tmp_path):
+    """Re-rendering the same figure in one process must byte-match even
+    though raw clip ids come from a process-wide counter: scope_ids
+    normalizes them to appearance order."""
+    freg.render_figures(single_run, ["volatility_acf@1"], tmp_path / "a")
+    freg.render_figures(single_run, ["volatility_acf@1"], tmp_path / "b")
+    assert ((tmp_path / "a" / "figures" / "volatility_acf.svg").read_bytes()
+            == (tmp_path / "b" / "figures" / "volatility_acf.svg")
+            .read_bytes())
