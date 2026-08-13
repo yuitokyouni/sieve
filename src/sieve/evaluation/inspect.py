@@ -6,8 +6,9 @@ Contract (task §4.1):
 - works without any reference data and on a single short run;
 - produces descriptive statistics and diagnostic figures only;
 - emits no PASS/FAIL and no p-values — statuses are OBSERVED /
-  INSUFFICIENT / NOT_APPLICABLE / NOT_TESTED (defined in
-  ``core.enums.ExploratoryStatus``);
+  INSUFFICIENT / NOT_APPLICABLE / NOT_TESTED / ERROR (defined in
+  ``core.enums.ExploratoryStatus``; ERROR marks a sieve-internal bug,
+  never a data fact);
 - the report states its exploratory nature on every page;
 - inadequate metrics/figures resolve individually; nothing aggregates.
 """
@@ -56,35 +57,84 @@ def _geometry_summary(ds: SimulationDataset) -> GeometrySummary:
               for r in ds.runs])
 
 
+def _metric_gate(req, ds: SimulationDataset, run) -> tuple[
+        ExploratoryStatus, str] | None:
+    """Check one (metric, run) pair against the metric's full declared
+    :class:`MetricRequirements`; ``None`` means adequate. Every declared
+    requirement is enforced here — declaring a requirement without an
+    enforcing gate would let future metrics run on inputs they refused."""
+    missing = [c for c in req.required_columns if c not in run.columns]
+    if missing:
+        return (ExploratoryStatus.NOT_APPLICABLE,
+                f"run has no '{'/'.join(missing)}' column")
+    if ds.geometry.value not in req.supported_geometries:
+        return (ExploratoryStatus.NOT_APPLICABLE,
+                f"geometry '{ds.geometry.value}' is not supported by this "
+                "metric")
+    if run.irregular_spacing and (req.requires_regular_spacing
+                                  or not req.supports_irregular_time):
+        return (ExploratoryStatus.NOT_APPLICABLE,
+                "run has irregular step spacing and this metric requires "
+                "regular spacing")
+    applied = {t.name for t in ds.transforms}
+    unmet = [p for p in req.preprocessing_requirements if p not in applied]
+    if unmet:
+        return (ExploratoryStatus.NOT_APPLICABLE,
+                f"declared preprocessing requirement(s) {unmet} were not "
+                "applied to this input")
+    if run.n_obs < req.minimum_observations_per_run:
+        return (ExploratoryStatus.INSUFFICIENT,
+                f"{run.n_obs} observations < metric minimum "
+                f"{req.minimum_observations_per_run}")
+    return None
+
+
 def _metric_observations(ds: SimulationDataset, metric_refs: list[str]
                          ) -> list[MetricObservation]:
     """Per-run metric values, gated by each metric's declared requirements.
 
     An inadequate (run, metric) pair becomes its own INSUFFICIENT /
-    NOT_APPLICABLE observation; it never blocks other metrics or runs.
+    NOT_APPLICABLE observation; it never blocks other metrics or runs. A
+    metric implementation *raising* becomes ERROR — a sieve bug on record,
+    never disguised as data inadequacy.
     """
+    from sieve.core.models import MetricRequirements
+
     out: list[MetricObservation] = []
     for mref in metric_refs:
         _, spec, _dim = metric_registry.resolve(mref)
-        req = spec.requirements
-        min_obs = req.minimum_observations_per_run if req else 300
-        needed = req.required_columns if req else ["return"]
+        req = spec.requirements or MetricRequirements()
+        gated: dict[str, tuple[ExploratoryStatus, str]] = {}
+        adequate = []
         for run in ds.runs:
-            missing = [c for c in needed if c not in run.columns]
-            if missing:
+            verdict = _metric_gate(req, ds, run)
+            if verdict is None:
+                adequate.append(run)
+            else:
+                gated[run.run_id] = verdict
+        if len(adequate) < req.minimum_runs:
+            for run in adequate:
+                gated[run.run_id] = (
+                    ExploratoryStatus.INSUFFICIENT,
+                    f"only {len(adequate)} adequate run(s) < metric minimum "
+                    f"of {req.minimum_runs} run(s)")
+            adequate = []
+        for run in ds.runs:
+            if run.run_id in gated:
+                status, note = gated[run.run_id]
                 out.append(MetricObservation(
                     metric_ref=mref, run_id=run.run_id,
-                    status=ExploratoryStatus.NOT_APPLICABLE,
-                    note=f"run has no '{'/'.join(missing)}' column"))
+                    status=status, note=note))
                 continue
-            if run.n_obs < min_obs:
+            try:
+                v = metric_registry.compute(mref, run.columns["return"])
+            except metric_registry.MetricComputationError as e:
                 out.append(MetricObservation(
                     metric_ref=mref, run_id=run.run_id,
-                    status=ExploratoryStatus.INSUFFICIENT,
-                    note=f"{run.n_obs} observations < metric minimum "
-                         f"{min_obs}"))
+                    status=ExploratoryStatus.ERROR,
+                    note=f"internal error, not a data property — {e}; "
+                         "please report this as a sieve bug"))
                 continue
-            v = metric_registry.compute(mref, run.columns["return"])
             if not np.isfinite(v):
                 out.append(MetricObservation(
                     metric_ref=mref, run_id=run.run_id,
@@ -235,7 +285,10 @@ def run_inspect(input_path: str | Path,
             "n_obs": reference["n_obs"],
             "source_path_informational": str(reference_path),
             "role": "figure overlay comparator (exploratory; no inference)"})
-    render_inspect_report(run_dir / "report" / "index.html", bundle, run_dir)
+    # trusted_artifacts: this render inlines the SVG files this very process
+    # wrote above; the artifact index (their hashes) is only filled below
+    render_inspect_report(run_dir / "report" / "index.html", bundle, run_dir,
+                          trusted_artifacts=True)
 
     rels = ["manifest.json", "dataset_summary.json", "observations.parquet",
             "figures.json", "report/index.html"]

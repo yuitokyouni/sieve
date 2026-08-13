@@ -17,6 +17,7 @@ so the evidence bundle can replay the exact pipeline.
 
 from __future__ import annotations
 
+import datetime as _dt
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -140,14 +141,62 @@ def validate_run(run: RunSeries) -> None:
                 f"run '{run.run_id}': step values are not strictly "
                 "increasing; sort the rows or fix the generator output")
     if run.timestamps is not None:
-        seen: set[str] = set()
-        for t in run.timestamps:
-            if t and t in seen:
-                raise InputError(
-                    f"run '{run.run_id}': duplicated timestamp '{t}'; each "
-                    "row must have a unique timestamp (multiple runs in one "
-                    "file need a run_id column)")
-            seen.add(t)
+        validate_timestamps(run.run_id, run.timestamps)
+
+
+def parse_timestamp(raw: str, run_id: str, row: int) -> _dt.datetime:
+    """Parse one timestamp cell against the declared input contract.
+
+    Accepted format: ISO-8601 date or datetime (``2024-01-03``,
+    ``2024-01-03T15:30:00``, ``2024-01-03T15:30:00+09:00`` — anything
+    :meth:`datetime.fromisoformat` accepts). Timezone handling is explicit:
+    an offset is honored when present and never inferred when absent —
+    naive timestamps are compared as written, aware ones as instants.
+    """
+    if not raw:
+        raise InputError(
+            f"run '{run_id}': empty timestamp at row {row}; every row of a "
+            "timestamp-based input must carry an ISO-8601 date or datetime")
+    try:
+        return _dt.datetime.fromisoformat(raw)
+    except ValueError:
+        raise InputError(
+            f"run '{run_id}': unparseable timestamp {raw!r} at row {row}; "
+            "timestamps must be ISO-8601 (e.g. 2024-01-03 or "
+            "2024-01-03T15:30:00+09:00) — sieve never guesses a date "
+            "format") from None
+
+
+def validate_timestamps(run_id: str, timestamps: list[str]) -> None:
+    """Full timestamp contract for one run: parseable ISO-8601, no empty
+    cells, no naive/aware mixing, strictly increasing in time.
+
+    Out-of-order rows are refused, never sorted: silently reordering the
+    input would be a silent preprocessing step (invariants §2-12/13), and
+    time-directional diagnostics (leverage, ACF) would otherwise run on a
+    scrambled arrow of time.
+    """
+    parsed = [parse_timestamp(t, run_id, i + 1)
+              for i, t in enumerate(timestamps)]
+    aware = {p.tzinfo is not None for p in parsed}
+    if len(aware) > 1:
+        raise InputError(
+            f"run '{run_id}': timestamps mix timezone-aware and naive "
+            "values; use one convention for the whole run — sieve does not "
+            "assume a timezone for the naive ones")
+    for i in range(1, len(parsed)):
+        if parsed[i] == parsed[i - 1]:
+            raise InputError(
+                f"run '{run_id}': duplicated timestamp "
+                f"'{timestamps[i]}' at row {i + 1}; each row must have a "
+                "unique timestamp (multiple runs in one file need a run_id "
+                "column)")
+        if parsed[i] < parsed[i - 1]:
+            raise InputError(
+                f"run '{run_id}': timestamps are not strictly increasing "
+                f"({timestamps[i - 1]!r} is followed by {timestamps[i]!r} "
+                f"at row {i + 1}); sort the rows and re-submit — sieve "
+                "never reorders input silently")
 
 
 def derive_return(price: np.ndarray, method: str, run_id: str) -> np.ndarray:

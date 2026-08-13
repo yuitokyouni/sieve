@@ -7,7 +7,8 @@ Exit-code contract (spec §8: evaluation outcomes are not process errors):
   2  invalid input (bad CSV, unknown claim, malformed manifest)
   3  missing dependency or missing suite/artifact on disk
   4  ``sieve verify`` found the bundle or its artifacts modified
-  1  internal error (a bug in sieve; please report)
+  1  internal error (a bug in sieve; please report) — including a completed
+     ``sieve inspect`` whose bundle contains ERROR diagnostics
 """
 
 from __future__ import annotations
@@ -120,7 +121,8 @@ def inspect(
 
     Works without any reference data, on one short run or a multi-seed
     ensemble. Emits NO pass/fail — figure statuses are OBSERVED /
-    INSUFFICIENT / NOT_APPLICABLE / NOT_TESTED. Writes a sealed
+    INSUFFICIENT / NOT_APPLICABLE / NOT_TESTED (ERROR flags a sieve bug
+    and makes the command exit 1). Writes a sealed
     inspect_bundle.json, observations.parquet, figures/*.svg and
     report/index.html into a new run directory.
     """
@@ -151,13 +153,29 @@ def inspect(
                f"time basis {g.time_basis}")
     for f in b.figures:
         mark = {"OBSERVED": typer.colors.BLUE,
-                "INSUFFICIENT": typer.colors.YELLOW}.get(f.status.value)
+                "INSUFFICIENT": typer.colors.YELLOW,
+                "ERROR": typer.colors.RED}.get(f.status.value)
         typer.secho(f"  {f.status.value:<15} {f.figure_id:<28} "
                     f"{f.stylized_fact}", fg=mark)
     typer.echo(f"bundle {b.bundle_hash[:16]}…")
     typer.echo(f"report: {run_dir / 'report' / 'index.html'}")
     typer.echo("statuses are per-figure data adequacy, not quality; "
                "no aggregate exists")
+    errors = ([f"figure {f.figure_id}: {f.note}"
+               for f in b.figures if f.status.value == "ERROR"]
+              + [f"metric {ob.metric_ref} on run {ob.run_id}: {ob.note}"
+                 for ob in b.metric_observations
+                 if ob.status.value == "ERROR"])
+    if errors:
+        # an ERROR status is a sieve bug, not an evaluation outcome: the
+        # report above was still written, but the process must not exit 0
+        # as if every diagnostic resolved on data adequacy alone
+        for msg in errors:
+            typer.secho(f"  internal ERROR: {msg}", fg=typer.colors.RED,
+                        err=True)
+        _fail(1, f"{len(errors)} diagnostic(s) hit an internal error (a bug "
+                 "in sieve, not a property of your data); the report was "
+                 "written but is incomplete — please report this")
 
 
 @app.command()

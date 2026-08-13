@@ -2,6 +2,49 @@
 
 ## Unreleased
 
+External-audit hardening of the input boundary and failure observability.
+
+- **Timestamp inputs are now validated, not just deduplicated.**
+  Timestamp-based runs must be ISO-8601 (anything
+  `datetime.fromisoformat` accepts), with no empty cells, no
+  naive/timezone-aware mixing, and strictly increasing order. Out-of-order
+  rows are refused with a "sort and re-submit" error — sieve never
+  reorders input silently, and time-directional diagnostics (leverage,
+  ACF) no longer run on a scrambled arrow of time. Applies to both the
+  research adapter and the Tier-0 `sieve test` CSV path.
+- **Internal bugs are `ERROR`, never `INSUFFICIENT`.**
+  `ExploratoryStatus.ERROR` is a new first-class status: an exception out
+  of a metric or figure implementation is recorded as ERROR with the
+  exception type and version in the sealed bundle, instead of being
+  silently converted to NaN/INSUFFICIENT ("data inadequate"). Expected
+  numeric non-computability stays INSUFFICIENT (metrics may raise
+  `MetricNotComputable` or return NaN). `sieve inspect` still writes the
+  full report but exits 1 when any ERROR diagnostic is present.
+- **`manifest.yaml` is schema-validated with unknown keys refused.**
+  A typo like `burn_in_stpes: 500` used to be silently ignored (burn-in
+  0); it is now an InputError naming the offending key, at the top level
+  and inside `burn_in`, `runs[]` entries and `seeds`. Malformed YAML is
+  reported as a user input error (CLI exit 2) with line/column context
+  instead of a traceback.
+- **Fractional step values are refused, never truncated** (`0.9` no
+  longer parses as step 0), and **CSV rows with extra cells are refused**
+  instead of silently dropping the tail.
+- **Bundle-declared artifact paths are confined to the run directory.**
+  `sieve verify` and report re-rendering reject `..`/absolute/symlink
+  escapes in `artifact_index` / `artifact_path`, and a re-rendered report
+  only inlines an SVG past autoescape after its bytes match the sealed
+  artifact hash — a third-party bundle can no longer read files outside
+  its run directory or smuggle foreign markup into the report.
+- **The HTML report now discloses the reference overlay.** With
+  `--reference`, figure cards show the overlay label, content hash and
+  n_obs ("visual context only, not used for any inference") instead of
+  always claiming "Reference comparator: none".
+- **Every declared `MetricRequirements` field is enforced** in the
+  inspect gate (supported geometries, minimum runs, spacing-regularity
+  flags, preprocessing requirements) — previously only required columns
+  and per-run minimum observations were checked, so future metrics could
+  declare requirements that were never applied.
+
 - **Fix: figure SVGs no longer clip each other inside the HTML report.**
   Every figure defined its clipPath as `id="c"`; SVG ids are
   document-global once the report inlines the figures, so `url(#c)`

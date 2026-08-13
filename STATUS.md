@@ -82,9 +82,12 @@ implemented, and the reference-period label matches the shipped windows.
 
 ### Acceptance criteria → tests
 
-85 total (as of v0.2.0): 76 run standalone, 8 parity tests run in the CI
-`parity` job against a pinned sieve-bench checkout, 1 requires locally
-fetched raw data. Compare gate: `tests/integration/test_compare.py`.
+Test counts drift with every release, so no fixed number is pinned here —
+`pytest` collects the authoritative set and CI runs it on every push (see
+the CI workflow / badge). Skipped-by-design groups: parity tests run in
+the CI `parity` job against a pinned sieve-bench checkout, and a small
+number require locally fetched raw data. Compare gate:
+`tests/integration/test_compare.py`.
 
 | Criterion | Test |
 |---|---|

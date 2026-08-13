@@ -59,24 +59,46 @@ def render_report(out_path: str | Path, bundle: EvidenceBundle,
 
 
 def render_inspect_report(out_path: str | Path, bundle,
-                          run_dir: str | Path) -> Path:
+                          run_dir: str | Path, *,
+                          trusted_artifacts: bool = False) -> Path:
     """Render the exploratory inspection report (self-contained HTML).
 
     Figure SVGs are inlined so the report stays readable if the directory
     is moved or the report file is shared alone; the standalone SVG files
     remain sealed artifacts in ``figures/``.
+
+    Inlined SVG bypasses autoescape (``|safe``), so it must be provably
+    sieve-generated: artifact paths are confined to the run directory, and
+    — unless ``trusted_artifacts`` is set by the in-process first render,
+    which wrote the files itself moments ago — an SVG is only inlined when
+    its bytes match the sealed ``artifact_index`` hash. A bundle received
+    from a third party therefore cannot smuggle foreign markup (or files
+    from outside the run directory) into the report.
     """
+    from sieve.core.hashing import sha256_file
+    from sieve.provenance.bundle import safe_artifact_path
+
     bundle = _canonical(bundle)
     out_path = Path(out_path)
     run_dir = Path(run_dir)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
+    sealed = {a.path: a.sha256 for a in bundle.artifact_index}
     svgs: dict[str, str] = {}
     for f in bundle.figures:
-        if f.artifact_path:
-            p = run_dir / f.artifact_path
-            if p.exists():
-                svgs[f.figure_id] = p.read_text()
+        if not f.artifact_path:
+            continue
+        try:
+            p = safe_artifact_path(run_dir, f.artifact_path)
+        except ValueError:
+            continue                    # escaping path: never read, never inline
+        if not p.exists():
+            continue
+        if not trusted_artifacts and (
+                f.artifact_path not in sealed
+                or sha256_file(p) != sealed[f.artifact_path]):
+            continue                    # unverifiable SVG: never |safe it
+        svgs[f.figure_id] = p.read_text()
 
     metric_ids = []
     per_metric: dict[str, dict] = {}

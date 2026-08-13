@@ -135,9 +135,30 @@ def all_specs() -> list[MetricSpec]:
     return [spec for _, spec, _ in _ENTRIES.values()]
 
 
+class MetricNotComputable(ValueError):
+    """Expected numeric non-computability of a metric on adequate-looking
+    data (e.g. too few tail points, zero variance). Metric implementations
+    may raise this — or return NaN, which is equivalent — and the caller
+    reads it as INSUFFICIENT, never as a bug."""
+
+
+class MetricComputationError(RuntimeError):
+    """A metric implementation raised an unexpected exception: a bug in
+    sieve, never a statement about the data. Callers must surface this as
+    ERROR (or crash), not repackage it as INSUFFICIENT — an internal defect
+    disguised as "data inadequate" would silently corrupt reports."""
+
+
 def compute(ref: str, r: np.ndarray) -> float:
-    fn, _, _ = resolve(ref)
+    """Evaluate one metric. Expected non-computability comes back as NaN;
+    anything else a metric raises is re-raised as
+    :class:`MetricComputationError` with the metric identity attached."""
+    fn, spec, _ = resolve(ref)
     try:
         return float(fn(np.asarray(r, dtype=float)))
-    except Exception:
+    except MetricNotComputable:
         return float("nan")
+    except Exception as e:
+        raise MetricComputationError(
+            f"metric {spec.metric_id}@{spec.version} "
+            f"({spec.function_path}) raised {type(e).__name__}: {e}") from e

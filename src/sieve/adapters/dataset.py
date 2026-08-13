@@ -22,9 +22,11 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 import yaml
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError
 
 from sieve.core.dataset import (
     RESERVED_COLUMNS,
@@ -39,7 +41,73 @@ from sieve.core.dataset import (
 from sieve.core.hashing import sha256_file, sha256_params
 from sieve.core.models import DatasetManifest, ModelManifest, TransformSpec
 
-__all__ = ["load_dataset", "InputError"]
+__all__ = ["load_dataset", "InputError", "ResearchInputManifest"]
+
+
+# ---------------------------------------------------------- manifest schema
+
+class _ManifestModel(BaseModel):
+    # extra="forbid": a typo'd manifest key (burn_in_stpes) must be an
+    # InputError, never a silently-ignored no-op — the same "no silent
+    # preprocessing" rule the data path follows.
+    model_config = ConfigDict(extra="forbid", protected_namespaces=())
+
+
+class ManifestRunEntry(_ManifestModel):
+    file: str
+    run_id: str | int | None = None
+    seed: int | None = None
+    burn_in_steps: int | None = Field(default=None, ge=0)
+
+
+class ManifestBurnIn(_ManifestModel):
+    steps: int | None = Field(default=None, ge=0)
+    fraction: float | None = Field(default=None, ge=0)
+
+
+class ResearchInputManifest(_ManifestModel):
+    """Typed schema of ``manifest.yaml``. Every key the adapters read is
+    declared here; anything else is refused with the offending key named."""
+
+    # model identity (shared with the Tier-0 csv adapter)
+    model_id: str | int | float | None = None
+    model_version: str | int | float | None = None
+    display_name: str | None = None
+    model_family: str | None = None
+    code_uri: str | None = None
+    git_commit: str | None = None
+    parameters: dict[str, JsonValue] = Field(default_factory=dict)
+    authors: list[str] = Field(default_factory=list)
+    license: str | None = None
+    notes: str | None = None
+    # dataset identity
+    dataset_id: str | None = None
+    frequency: str | None = None
+    # research-input declarations
+    geometry: str | None = None
+    derive_return: Literal["log", "simple", "diff"] | None = None
+    burn_in: ManifestBurnIn | None = None
+    runs: list[ManifestRunEntry] | None = None
+    seeds: dict[str | int, int] | None = None
+
+
+def validate_manifest(meta: dict, path: Path) -> None:
+    """Validate a raw manifest mapping; raise :class:`InputError` naming
+    every unknown or mistyped key."""
+    try:
+        ResearchInputManifest.model_validate(meta)
+    except ValidationError as e:
+        msgs = []
+        for err in e.errors():
+            loc = ".".join(str(x) for x in err["loc"])
+            if err["type"] == "extra_forbidden":
+                msgs.append(f"unknown key '{loc}'")
+            else:
+                msgs.append(f"key '{loc}': {err['msg']}")
+        raise InputError(
+            f"{path}: invalid manifest — " + "; ".join(msgs)
+            + ". sieve refuses unknown or mistyped manifest keys instead of "
+              "silently ignoring them; fix the manifest and re-run") from None
 
 
 # ---------------------------------------------------------------- CSV parsing
@@ -69,6 +137,22 @@ def _parse_float(cell: str, path: Path, ln: int, col: str) -> float:
             f"{cell!r}; fix the row or remove it from the file") from e
 
 
+def _parse_step(cell: str, path: Path, rid: str) -> int:
+    try:
+        f = float(cell)
+    except ValueError:
+        raise InputError(
+            f"{path}: run '{rid}': non-integer step value {cell!r}; steps "
+            "must be integers") from None
+    if not f.is_integer():
+        # never silently truncate 0.9 -> 0: the error message and the
+        # implementation must agree that steps are integers
+        raise InputError(
+            f"{path}: run '{rid}': non-integer step value {cell!r}; steps "
+            "must be integers — sieve does not round or truncate them")
+    return int(f)
+
+
 def _parse_file(path: Path) -> list[RunSeries]:
     """Parse one CSV into one or more runs (long format via run_id)."""
     cols, rows = _read_table(path)
@@ -91,7 +175,9 @@ def _parse_file(path: Path) -> list[RunSeries]:
     groups: dict[str, list[list[str]]] = {}
     order: list[str] = []
     for row in rows:
-        if len(row) < len(cols):
+        if len(row) != len(cols):
+            # extra cells are refused too: a stray comma would otherwise
+            # silently shift or drop values
             raise InputError(
                 f"{path}: a row has {len(row)} cells but the header has "
                 f"{len(cols)}; fix the file")
@@ -114,13 +200,8 @@ def _parse_file(path: Path) -> list[RunSeries]:
         steps = None
         timestamps = None
         if has_step:
-            try:
-                steps = np.array([int(float(row[idx["step"]]))
-                                  for row in grows], dtype=np.int64)
-            except ValueError as e:
-                raise InputError(
-                    f"{path}: run '{rid}': non-integer step value; steps "
-                    "must be integers") from e
+            steps = np.array([_parse_step(row[idx["step"]], path, rid)
+                              for row in grows], dtype=np.int64)
         elif has_ts:
             timestamps = [row[idx["timestamp"]].strip() for row in grows]
         run = RunSeries(run_id=rid, columns=columns, steps=steps,
@@ -265,9 +346,15 @@ def _manifests(meta: dict, *, source: Path,
 def _load_manifest(path: Path) -> dict:
     if not path.exists():
         return {}
-    meta = yaml.safe_load(path.read_text()) or {}
+    try:
+        meta = yaml.safe_load(path.read_text()) or {}
+    except yaml.YAMLError as e:
+        # a broken manifest is a user-input problem (CLI exit 2), not an
+        # internal error; the YAML message carries line/column context
+        raise InputError(f"{path}: malformed YAML — {e}") from None
     if not isinstance(meta, dict):
         raise InputError(f"{path}: manifest must be a YAML mapping")
+    validate_manifest(meta, path)
     return meta
 
 

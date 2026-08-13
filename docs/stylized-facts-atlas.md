@@ -15,8 +15,8 @@ Ground rules:
   shows.
 - **Statuses are per-diagnostic**: `OBSERVED` (computed and rendered from
   adequate data), `INSUFFICIENT`, `NOT_APPLICABLE` (input lacks a column
-  or geometry), `NOT_TESTED` (registered roadmap entry). No counts, no
-  "8/11".
+  or geometry), `NOT_TESTED` (registered roadmap entry), `ERROR` (a bug
+  inside sieve — never a data fact). No counts, no "8/11".
 - Figures reuse the metric computation code; consistency is enforced by
   `tests/unit/test_figures.py`.
 

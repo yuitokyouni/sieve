@@ -54,7 +54,9 @@ which contradicts, and which is undetermined.
   one short run or a 100-seed ensemble. It emits figures and descriptive
   statistics with statuses `OBSERVED` / `INSUFFICIENT` / `NOT_APPLICABLE`
   / `NOT_TESTED` — never PASS/FAIL. `OBSERVED` means "computed and
-  rendered from adequate data", not "the stylized fact holds".
+  rendered from adequate data", not "the stylized fact holds". (A fifth
+  status, `ERROR`, marks a bug inside sieve itself — never a statement
+  about your data — and makes the command exit non-zero.)
 - **`sieve test`** is confirmatory. It evaluates a claim against a
   versioned suite's shipped empirical reference with prespecified,
   calibrated inference, and emits PASS / FAIL / WARN / NOT_TESTED /
