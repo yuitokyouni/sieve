@@ -1,0 +1,68 @@
+{
+  "fixture_id": "canary/exact-lob-min",
+  "fixture_version": "1.0.0",
+  "mode": "exact",
+  "status": "ready",
+  "summary": "Byte-level reproduction check on a 40-step, 6-agent limit order book. Runs in milliseconds on the standard library alone.",
+  "not_derived_from": "tests/golden/fixtures/ is NOT reused, in whole or in part. Those fixtures are the parity harness against the research repository; a canary that shared their inputs would go red for the same reasons the parity job already goes red, and would add no independent signal. This fixture's config, seed and engine are generated for it and live beside it.",
+  "subject": {
+    "engine_id": "min-lob-a",
+    "engine_version": "1.0.0",
+    "entrypoint": "_engine.min_lob_a:MinLobA",
+    "config_path": "config.json",
+    "seed_source": "config.json:seed",
+    "rng_algorithm": "splitmix64",
+    "rng_version": "1"
+  },
+  "precondition": {
+    "kind": "three_layer_hash_agreement",
+    "statement": "The exact assertion is only meaningful when the three declared layers agree. If any layer is unverifiable the result is UNVERIFIABLE, never MISMATCH: a digest that could not be computed is a statement about the harness, not about the engine.",
+    "layers": [
+      {
+        "layer": "input",
+        "target": "config.json",
+        "canonical_form": "effective_config",
+        "note": "The fixture's whole input is its config; there is no external dataset, on purpose."
+      },
+      {
+        "layer": "effective_config",
+        "target": "resolved config after defaults and overrides",
+        "canonical_form": "effective_config",
+        "note": "Equal to the input layer for this fixture because the engine takes no overrides. Kept as a distinct layer so the fixture exercises the same three-layer shape as a real run."
+      },
+      {
+        "layer": "environment_fingerprint",
+        "target": "registered environment keys at runtime_fingerprint_domain_version",
+        "canonical_form": "effective_config",
+        "note": "PARTIALLY WAIVED AND DECLARED: this fixture asserts only the keys it can affect (python major.minor, rng_algorithm, rng_version). numpy/blas/dependency_lock_digest are outside its domain because it does not import them. The waiver is what makes the fixture runnable in CI before the full fingerprint plumbing lands on 2026-08-24; it is recorded here rather than left implicit."
+      }
+    ]
+  },
+  "assertion": {
+    "statement": "The canonicalized event log and the canonicalized stats_vector each reproduce their expected sha256 exactly.",
+    "targets": [
+      {
+        "assertion_id": "exact.event_log_digest",
+        "canonical_form": "event_log",
+        "expected_ref": "expected.json:output_digest"
+      },
+      {
+        "assertion_id": "exact.stats_vector_digest",
+        "canonical_form": "stats_vector",
+        "expected_ref": "expected.json:stats_vector_digest",
+        "stats_vector_spec": {"spec_id": "lob-common-surface", "spec_version": "1.0.0"}
+      }
+    ]
+  },
+  "tolerance": {
+    "statement": "None. An exact canary has no tolerance by construction — that is the whole content of the word 'exact'.",
+    "entries": []
+  },
+  "generation": {
+    "command": "python3 fixtures/canary/run_canary.py --fixture exact-lob-min --mint",
+    "working_directory": "repository root",
+    "environment": "CPython >= 3.11, standard library only. No numpy, no scipy, no sieve import.",
+    "determinism_basis": "Integer state throughout; splitmix64 with the seed in config.json; canonical JSON with sorted keys and compact separators. The two float-valued stats_vector elements are quantized half-to-even before hashing.",
+    "expected_path": "expected.json"
+  }
+}
