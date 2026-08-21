@@ -18,9 +18,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from _engine.rng import SplitMix64
 from _engine.rng import ALGORITHM as RNG_ALGORITHM
 from _engine.rng import VERSION as RNG_VERSION
+from _engine.rng import SplitMix64
 
 ENGINE_ID = "min-lob-a"
 ENGINE_VERSION = "1.0.0"
@@ -102,7 +102,8 @@ class MinLobA:
         return self.cfg["initial_mid"]
 
     def _rest(self, side, price, qty, agent, order_id):
-        self.book[side].setdefault(price, []).append([order_id, qty, self._order_seq, agent])
+        self.book[side].setdefault(price, []).append(
+            [order_id, qty, self._order_seq, agent])
         self._order_seq += 1
 
     def _resting_of(self, agent) -> list:

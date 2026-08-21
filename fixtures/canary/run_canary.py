@@ -21,13 +21,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 
-from _engine import stats_vector as sv                       # noqa: E402
+from _engine import stats_vector as sv  # noqa: E402
 from _engine.canonical import canonical_bytes, digest, digest_file  # noqa: E402
-from _engine.min_lob_a import MinLobA                        # noqa: E402
-from _engine.min_lob_b import MinLobB                        # noqa: E402
-from _engine.rng import ALGORITHM as RNG_ALGORITHM           # noqa: E402
-from _engine.rng import VERSION as RNG_VERSION               # noqa: E402
-from _engine.schema_check import validate                    # noqa: E402
+from _engine.min_lob_a import MinLobA  # noqa: E402
+from _engine.min_lob_b import MinLobB  # noqa: E402
+from _engine.rng import ALGORITHM as RNG_ALGORITHM  # noqa: E402
+from _engine.rng import VERSION as RNG_VERSION  # noqa: E402
+from _engine.schema_check import validate  # noqa: E402
 
 ENGINES = {"min-lob-a": MinLobA, "min-lob-b": MinLobB}
 COMMON_FIELDS = ("t", "event_id", "event_type", "actor_id", "actor_role",
@@ -158,7 +158,8 @@ def run_exact(directory: str, mint: bool) -> dict:
             verdict, reason = "MATCH", "both digests reproduce exactly"
         else:
             verdict = "MISMATCH"
-            reason = ("output digest differs" if output_digest != exp_body["output_digest"]
+            differs = output_digest != exp_body["output_digest"]
+            reason = ("output digest differs" if differs
                       else "stats_vector digest differs")
 
     result = {
@@ -240,7 +241,8 @@ def _assertions(reference: dict, subject: dict, ref_stats: dict,
     for event in subject["events"]:
         if event["event_type"] == "order_fill":
             sign = 1 if event["side"] == "buy" else -1
-            imbalance[event["t"]] = imbalance.get(event["t"], 0) + sign * event["quantity"]
+            t = event["t"]
+            imbalance[t] = imbalance.get(t, 0) + sign * event["quantity"]
     worst = max((abs(v) for v in imbalance.values()), default=0)
     out.append({
         "assertion_id": "semantic.two_sided_equality", "kind": "two_sided_equality",
