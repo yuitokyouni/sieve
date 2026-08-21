@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/yuitokyouni/sieve/schemas/EventLog.schema.json",
+  "title": "EventLog",
+  "description": "Engine-neutral event log, Evidence Contract v0.1. A log is a DOCUMENT: a header that declares units and ordering policy, plus an ordered array of events. The header is what makes the event fields interpretable across engines; a bare stream of events is NOT a conforming log. A JSON Lines serialization is permitted (see canonical_form 'event_log' in docs/contract/canonicalization.md): line 0 is the header object without `events`, lines 1..n are Event objects. NEW schema; nothing here modifies an existing sieve schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "log_id",
+    "engine",
+    "time_unit",
+    "price_unit",
+    "quantity_unit",
+    "ordering",
+    "instruments",
+    "events"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "log_id": { "type": "string", "minLength": 1 },
+    "engine": {
+      "description": "Engine identity. Required for any cross-engine (semantic) comparison: without it a comparison table has no subjects.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine_id", "engine_version"],
+      "properties": {
+        "engine_id": { "type": "string", "minLength": 1 },
+        "engine_version": { "type": "string", "minLength": 1 },
+        "git_commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" }
+      }
+    },
+    "time_unit": {
+      "description": "UNIT OF THE `t` FIELD. Declared per log, never assumed. 'step' = engine step index (dimensionless, integer). 'event' = event index (t == event ordinal). 'ns'/'us'/'ms'/'s' = wall/sim time in that SI unit, integer-valued.",
+      "enum": ["step", "event", "ns", "us", "ms", "s"]
+    },
+    "time_origin": {
+      "description": "Meaning of t == 0. Required to be stated when time_unit is an SI unit.",
+      "type": "string"
+    },
+    "price_unit": {
+      "description": "UNIT OF THE `price` FIELD. 'tick' = integer multiples of tick_size (the canary uses this: integer prices, exactly representable, no float in the hash domain). 'currency' = decimal price in the instrument's currency.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["tick", "currency"] },
+        "tick_size": { "type": "number", "exclusiveMinimum": 0 },
+        "currency": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "tick" } }, "required": ["kind"] },
+          "then": { "required": ["kind", "tick_size"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "currency" } }, "required": ["kind"] },
+          "then": { "required": ["kind", "currency"] }
+        }
+      ]
+    },
+    "quantity_unit": {
+      "description": "UNIT OF THE `quantity` FIELD. 'lot' with lot_size, or 'share'.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["lot", "share"] },
+        "lot_size": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "ordering": {
+      "description": "ORDER GUARANTEE. This is the contract's answer to same-timestamp ties; see gap G4. `event_id` is strictly increasing over the whole log and is the total order of record. `t` is non-decreasing. Whether a SECONDARY key is emitted, and what it means, is declared here.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total_order_key", "t_monotonic", "tie_break"],
+      "properties": {
+        "total_order_key": {
+          "description": "The field that carries the log's total order. Fixed to event_id in v1.",
+          "const": "event_id"
+        },
+        "t_monotonic": {
+          "description": "true iff `t` is non-decreasing in event_id order. A log with false here cannot be used for any time-windowed estimator without a declared re-sort rule.",
+          "type": "boolean"
+        },
+        "tie_break": {
+          "description": "How events sharing a `t` are ordered. 'event_id': array/id order IS the causal order and is guaranteed stable under any conforming transform. 'seq': the provisional `seq` field carries it. 'undefined': same-`t` order is NOT guaranteed — such a log is unusable for OFI (which is defined on consecutive book states).",
+          "enum": ["event_id", "seq", "undefined"]
+        },
+        "causality": {
+          "description": "Whether `cause_event_id` is emitted and is complete for the event types that have a cause (fills caused by an aggressing submit; expiries caused by a submit).",
+          "enum": ["complete", "partial", "absent"]
+        }
+      }
+    },
+    "instruments": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "l1_availability": {
+      "description": "GAP G1. Declares how Level-I state is obtainable from this log. 'inline': every event carries `l1` (the provisional field below). 'snapshot': `book_level` events reconstruct the book at snapshot times only — sufficient for conservation and no-crossing checks, NOT sufficient for per-event OFI. 'reconstruct': the consumer must replay the book, which requires a contract-defined reference reconstruction (option (b) in docs/contract/contract_gaps.md). 'none': Level-I is not recoverable.",
+      "enum": ["inline", "snapshot", "reconstruct", "none"]
+    },
+    "events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Event" }
+    }
+  },
+  "$defs": {
+    "Event": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "COMMON 8 FIELDS (all required, present on every event regardless of type): t, event_id, event_type, actor_id, actor_role, side, price, quantity. `side`, `price`, `quantity` are nullable but the KEYS are always present, so the common surface has a fixed shape across engines and a missing value is distinguishable from an absent field. Everything below the common 8 is either (a) a PROVISIONAL field introduced by an open contract gap, marked as such, or (b) `ext`, which is engine-private and is EXCLUDED from every cross-engine comparison and from stats_vector.",
+      "required": [
+        "t",
+        "event_id",
+        "event_type",
+        "actor_id",
+        "actor_role",
+        "side",
+        "price",
+        "quantity"
+      ],
+      "properties": {
+        "t": {
+          "description": "COMMON 1/8. Time, in the unit declared by the header's time_unit. Integer-valued: a float time would put the hash domain at the mercy of float formatting.",
+          "type": "integer"
+        },
+        "event_id": {
+          "description": "COMMON 2/8. Strictly increasing over the log, starting at 1. Carries the total order.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "event_type": {
+          "description": "COMMON 3/8. order_submit: an order enters the book (or is immediately marketable). order_cancel: resting quantity is withdrawn; `quantity` is the quantity WITHDRAWN by this event, not the original order size. order_fill: one LEG of a trade; a trade emits exactly two fill events, one per side, sharing a `t` and a `cause_event_id`. order_expire: resting quantity removed by the mechanism, not by the actor. book_level: a resting-depth record at a snapshot point (side, price, quantity) — the mechanism speaking, not an actor. market_state: a scalar mechanism announcement (e.g. auction open/close); carries nulls for side/price/quantity unless the announcement is a price.",
+          "enum": [
+            "order_submit",
+            "order_cancel",
+            "order_fill",
+            "order_expire",
+            "book_level",
+            "market_state"
+          ]
+        },
+        "actor_id": {
+          "description": "COMMON 4/8. Stable identifier of whoever caused the event. Mechanism-generated events use a reserved id declared by the engine (the canary uses '__book__' / '__mechanism__').",
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_role": {
+          "description": "COMMON 5/8. GAP G2: 'exogenous_harness' is the value that makes a harness-injected shock identifiable; without it an injected market order is indistinguishable from an agent's. It is emitted by the canary fixtures and is RECOMMENDED for the 2026-08-22 freeze; see docs/contract/contract_gaps.md G2. 'endogenous_agent': a modelled participant. 'market_mechanism': the matching engine / exchange itself. 'unknown': role not recorded (a log using this cannot support any shock-response estimator).",
+          "enum": ["endogenous_agent", "exogenous_harness", "market_mechanism", "unknown"]
+        },
+        "side": {
+          "description": "COMMON 6/8. buy/sell from the perspective of the actor for order_* events; for book_level, the side of the resting depth. null only where the event type has no side (market_state).",
+          "enum": ["buy", "sell", null]
+        },
+        "price": {
+          "description": "COMMON 7/8. In the header's price_unit. For order_fill this is the EXECUTION price, not the limit price. null where the event has no price.",
+          "type": ["number", "null"]
+        },
+        "quantity": {
+          "description": "COMMON 8/8. In the header's quantity_unit. Strictly positive where non-null: a signed quantity would make the conservation identity depend on a sign convention that is not in the contract. Direction is carried by `side` alone.",
+          "type": ["number", "null"],
+          "exclusiveMinimum": 0
+        },
+        "seq": {
+          "description": "PROVISIONAL (gap G4). Secondary ordering key within a single `t`. Meaningful only when ordering.tie_break == 'seq'. Not part of the common 8; a consumer must not require it unless the header declares it.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "cause_event_id": {
+          "description": "PROVISIONAL (gap G4). event_id of the event that caused this one. For an order_fill leg: the aggressing order_submit. Must refer to a SMALLER event_id (causes precede effects in the total order).",
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "order_id": {
+          "description": "PROVISIONAL (gap G5). Per-order identity, needed to close the quantity-conservation identity per order rather than only in aggregate. Not in the common 8.",
+          "type": ["string", "null"]
+        },
+        "instrument_id": {
+          "description": "Required only for multi-instrument logs; a single-instrument log may omit it (the header's instruments[0] applies).",
+          "type": "string",
+          "minLength": 1
+        },
+        "l1": {
+          "description": "PROVISIONAL (gap G1, option (a)). Level-I state AFTER this event has been applied. Present on every event iff the header declares l1_availability == 'inline'. Null price/size mean an empty side.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["bid_price", "bid_size", "ask_price", "ask_size"],
+          "properties": {
+            "bid_price": { "type": ["number", "null"] },
+            "bid_size": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+            "ask_price": { "type": ["number", "null"] },
+            "ask_size": { "type": ["number", "null"], "exclusiveMinimum": 0 }
+          }
+        },
+        "ext": {
+          "description": "Engine-private extension. Keys MUST be namespaced 'engineid.key'. EXCLUDED from: the common-surface comparison table, stats_vector, and every semantic assertion. Including an ext key in a cross-engine comparison is a contract violation, not a convenience.",
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$" }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "event_type": { "enum": ["order_submit", "order_cancel", "order_fill", "order_expire", "book_level"] } },
+            "required": ["event_type"]
+          },
+          "then": {
+            "properties": {
+              "side": { "enum": ["buy", "sell"] },
+              "quantity": { "type": "number", "exclusiveMinimum": 0 },
+              "price": { "type": "number" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
