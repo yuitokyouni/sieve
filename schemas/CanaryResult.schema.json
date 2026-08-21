@@ -4,7 +4,6 @@
   "title": "CanaryResult",
   "description": "Result of evaluating one canary fixture against one engine. SINGLE artifact for both canary kinds, discriminated by `mode` (decision Q3, approved 2026-08-20). The common envelope is identical in both modes so that a reader can index, compare and hash results without branching; only `payload` differs. NEW schema; nothing here modifies an existing sieve schema.",
   "type": "object",
-  "unevaluatedProperties": false,
   "required": [
     "schema_version",
     "canary_result_id",
@@ -17,34 +16,72 @@
     "payload"
   ],
   "properties": {
-    "schema_version": { "const": "1.0.0" },
-    "canary_result_id": { "type": "string", "minLength": 1 },
-    "created_at": { "type": "string", "format": "date-time" },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "canary_result_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "mode": {
       "description": "Discriminator. 'exact': the engine is asserted to reproduce a byte-identical canonicalized output. 'semantic': the engine is asserted to satisfy declared invariants and to land inside declared tolerances, without byte identity.",
-      "enum": ["exact", "semantic"]
+      "enum": [
+        "exact",
+        "semantic"
+      ]
     },
     "fixture": {
       "description": "Which fixture was evaluated. fixture_version is separate from fixture_digest on purpose: the version is the human contract, the digest is what actually ran.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["fixture_id", "fixture_version", "fixture_digest"],
+      "required": [
+        "fixture_id",
+        "fixture_version",
+        "fixture_digest"
+      ],
       "properties": {
-        "fixture_id": { "type": "string", "minLength": 1 },
-        "fixture_version": { "type": "string", "minLength": 1 },
-        "fixture_digest": { "$ref": "#/$defs/Sha256Hex" }
+        "fixture_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixture_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixture_digest": {
+          "$ref": "#/$defs/Sha256Hex"
+        }
       }
     },
     "engine": {
       "description": "Engine identity under test. Required in BOTH modes: a canary result without an identified subject cannot be filed against anything.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["engine_id", "engine_version"],
+      "required": [
+        "engine_id",
+        "engine_version"
+      ],
       "properties": {
-        "engine_id": { "type": "string", "minLength": 1 },
-        "engine_version": { "type": "string", "minLength": 1 },
-        "git_commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
-        "container_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+        "engine_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "engine_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "git_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$"
+        },
+        "container_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
       }
     },
     "run_ref": {
@@ -52,19 +89,42 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "run_id": { "type": "string" },
-        "run_manifest_digest": { "$ref": "#/$defs/Sha256Hex" }
+        "run_id": {
+          "type": "string"
+        },
+        "run_manifest_digest": {
+          "$ref": "#/$defs/Sha256Hex"
+        }
       }
     },
     "stats_vector": {
       "description": "Required in BOTH modes. The ordered, versioned summary of the run, computed from the COMMON SURFACE ONLY (ext.* excluded by construction). Order and element identity are fixed by stats_vector_spec; `values` is positional and MUST have the same length and order as the spec's elements.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["spec_id", "spec_version", "values", "digest"],
+      "required": [
+        "spec_id",
+        "spec_version",
+        "values",
+        "digest"
+      ],
       "properties": {
-        "spec_id": { "type": "string", "minLength": 1 },
-        "spec_version": { "type": "string", "minLength": 1 },
-        "values": { "type": "array", "items": { "type": ["number", "null"] } },
+        "spec_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "spec_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
         "digest": {
           "$ref": "#/$defs/Sha256Hex",
           "description": "sha256 of the canonicalized stats_vector (docs/contract/canonicalization.md 3.3)."
@@ -73,25 +133,48 @@
     },
     "verdict": {
       "description": "Classification, not a grade. MATCH: every declared assertion held. MISMATCH: at least one declared assertion did not hold. UNVERIFIABLE: a precondition could not be evaluated (B5 audit-time classification) — distinct from MISMATCH, which is a statement about the engine. PENDING_GENERATION: the fixture has no expected value yet; the result records what was observed so the expectation can be minted from it after review.",
-      "enum": ["MATCH", "MISMATCH", "UNVERIFIABLE", "PENDING_GENERATION"]
+      "enum": [
+        "MATCH",
+        "MISMATCH",
+        "UNVERIFIABLE",
+        "PENDING_GENERATION"
+      ]
     },
-    "verdict_reason": { "type": "string" },
-    "payload": { "type": "object" }
+    "verdict_reason": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "object"
+    }
   },
   "oneOf": [
     {
       "properties": {
-        "mode": { "const": "exact" },
-        "payload": { "$ref": "#/$defs/ExactPayload" }
+        "mode": {
+          "const": "exact"
+        },
+        "payload": {
+          "$ref": "#/$defs/ExactPayload"
+        }
       },
-      "required": ["mode", "payload"]
+      "required": [
+        "mode",
+        "payload"
+      ]
     },
     {
       "properties": {
-        "mode": { "const": "semantic" },
-        "payload": { "$ref": "#/$defs/SemanticPayload" }
+        "mode": {
+          "const": "semantic"
+        },
+        "payload": {
+          "$ref": "#/$defs/SemanticPayload"
+        }
       },
-      "required": ["mode", "payload"]
+      "required": [
+        "mode",
+        "payload"
+      ]
     }
   ],
   "$defs": {
@@ -104,31 +187,64 @@
       "description": "Exact mode. Precondition: the three-layer hash agreement (input / effective config / environment fingerprint). Assertion: canonicalized output digest AND stats_vector digest both equal their expected values.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["precondition", "observed", "expected"],
+      "required": [
+        "precondition",
+        "observed",
+        "expected"
+      ],
       "properties": {
         "precondition": {
           "description": "THREE-LAYER HASH AGREEMENT. Each layer is a classification, not a boolean, so that 'could not be computed' is never silently folded into 'did not match'.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["input", "effective_config", "environment_fingerprint"],
+          "required": [
+            "input",
+            "effective_config",
+            "environment_fingerprint"
+          ],
           "properties": {
-            "input": { "$ref": "#/$defs/PreconditionLayer" },
-            "effective_config": { "$ref": "#/$defs/PreconditionLayer" },
-            "environment_fingerprint": { "$ref": "#/$defs/PreconditionLayer" }
+            "input": {
+              "$ref": "#/$defs/PreconditionLayer"
+            },
+            "effective_config": {
+              "$ref": "#/$defs/PreconditionLayer"
+            },
+            "environment_fingerprint": {
+              "$ref": "#/$defs/PreconditionLayer"
+            }
           }
         },
-        "observed": { "$ref": "#/$defs/ExactDigests" },
+        "observed": {
+          "$ref": "#/$defs/ExactDigests"
+        },
         "expected": {
           "description": "Expected digests. Both members are null exactly when the fixture is at status pending_generation; in that case verdict MUST be PENDING_GENERATION. A placeholder digest is forbidden.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["output_digest", "stats_vector_digest"],
+          "required": [
+            "output_digest",
+            "stats_vector_digest"
+          ],
           "properties": {
             "output_digest": {
-              "oneOf": [{ "$ref": "#/$defs/Sha256Hex" }, { "type": "null" }]
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Sha256Hex"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "stats_vector_digest": {
-              "oneOf": [{ "$ref": "#/$defs/Sha256Hex" }, { "type": "null" }]
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Sha256Hex"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           }
         }
@@ -137,29 +253,71 @@
     "ExactDigests": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["output_digest", "output_canonical_form", "stats_vector_digest"],
+      "required": [
+        "output_digest",
+        "output_canonical_form",
+        "stats_vector_digest"
+      ],
       "properties": {
-        "output_digest": { "$ref": "#/$defs/Sha256Hex" },
-        "output_canonical_form": {
-          "enum": ["effective_config", "event_log", "stats_vector", "output_table", "bundle"]
+        "output_digest": {
+          "$ref": "#/$defs/Sha256Hex"
         },
-        "stats_vector_digest": { "$ref": "#/$defs/Sha256Hex" }
+        "output_canonical_form": {
+          "enum": [
+            "effective_config",
+            "event_log",
+            "stats_vector",
+            "output_table",
+            "bundle"
+          ]
+        },
+        "stats_vector_digest": {
+          "$ref": "#/$defs/Sha256Hex"
+        }
       }
     },
     "PreconditionLayer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status"],
+      "required": [
+        "status"
+      ],
       "properties": {
-        "status": { "enum": ["match", "mismatch", "unverifiable"] },
-        "observed_digest": { "$ref": "#/$defs/Sha256Hex" },
-        "expected_digest": { "$ref": "#/$defs/Sha256Hex" },
-        "reason": { "type": "string" }
+        "status": {
+          "enum": [
+            "match",
+            "mismatch",
+            "unverifiable"
+          ]
+        },
+        "observed_digest": {
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "expected_digest": {
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "reason": {
+          "type": "string"
+        }
       },
       "allOf": [
         {
-          "if": { "properties": { "status": { "const": "unverifiable" } }, "required": ["status"] },
-          "then": { "required": ["status", "reason"] }
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unverifiable"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "status",
+              "reason"
+            ]
+          }
         }
       ]
     },
@@ -167,69 +325,113 @@
       "description": "Semantic mode. Precondition is EVIDENCE, not an assertion: either the two sides share a behavior_config_hash (same engine, different environment), or a per-field common-surface comparison table is referenced (different engines). Assertions are the declared invariants plus tolerance-bearing statistics.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["precondition_evidence", "assertions"],
+      "required": [
+        "precondition_evidence",
+        "assertions"
+      ],
       "properties": {
         "precondition_evidence": {
           "type": "object",
-          "unevaluatedProperties": false,
-          "required": ["kind"],
+          "required": [
+            "kind"
+          ],
           "properties": {
             "kind": {
-              "enum": ["behavior_config_hash_match", "common_surface_comparison"]
+              "enum": [
+                "behavior_config_hash_match",
+                "common_surface_comparison"
+              ]
+            },
+            "status": {
+              "enum": [
+                "match",
+                "mismatch",
+                "unverifiable"
+              ]
+            },
+            "reference_behavior_config_hash": {
+              "$ref": "#/$defs/Sha256Hex"
+            },
+            "observed_behavior_config_hash": {
+              "$ref": "#/$defs/Sha256Hex"
+            },
+            "behavior_config_domain_version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "table_ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "table_digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            },
+            "fields_compared": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "fields_agreeing": {
+              "type": "integer",
+              "minimum": 0
             }
           },
           "oneOf": [
             {
-              "description": "Same engine, different environment.",
+              "description": "Same engine, different environment: the two sides share a behavior_config_hash, so behaviour is pinned by the configuration domain alone.",
               "properties": {
-                "kind": { "const": "behavior_config_hash_match" },
-                "reference_behavior_config_hash": { "$ref": "#/$defs/Sha256Hex" },
-                "observed_behavior_config_hash": { "$ref": "#/$defs/Sha256Hex" },
-                "behavior_config_domain_version": { "type": "integer", "minimum": 1 },
-                "status": { "enum": ["match", "mismatch", "unverifiable"] }
+                "kind": {
+                  "const": "behavior_config_hash_match"
+                }
               },
               "required": [
                 "kind",
+                "status",
                 "reference_behavior_config_hash",
                 "observed_behavior_config_hash",
-                "behavior_config_domain_version",
-                "status"
+                "behavior_config_domain_version"
               ]
             },
             {
-              "description": "Different engines. The comparison table is a per-field statement about the COMMON SURFACE (ext.* excluded). It is referenced by digest so the assertion cannot drift from the table it rests on.",
+              "description": "Different engines: there is no shared configuration domain, so the precondition is a per-field comparison of the common surface (ext.* excluded), referenced by digest.",
               "properties": {
-                "kind": { "const": "common_surface_comparison" },
-                "table_ref": { "type": "string", "minLength": 1 },
-                "table_digest": { "$ref": "#/$defs/Sha256Hex" },
-                "fields_compared": { "type": "integer", "minimum": 1 },
-                "fields_agreeing": { "type": "integer", "minimum": 0 },
-                "status": { "enum": ["match", "mismatch", "unverifiable"] }
+                "kind": {
+                  "const": "common_surface_comparison"
+                }
               },
               "required": [
                 "kind",
+                "status",
                 "table_ref",
                 "table_digest",
                 "fields_compared",
-                "fields_agreeing",
-                "status"
+                "fields_agreeing"
               ]
             }
-          ]
+          ],
+          "additionalProperties": false
         },
         "assertions": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/$defs/SemanticAssertion" }
+          "items": {
+            "$ref": "#/$defs/SemanticAssertion"
+          }
         }
       }
     },
     "SemanticAssertion": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["assertion_id", "kind", "status"],
+      "required": [
+        "assertion_id",
+        "kind",
+        "status"
+      ],
       "properties": {
-        "assertion_id": { "type": "string", "minLength": 1 },
+        "assertion_id": {
+          "type": "string",
+          "minLength": 1
+        },
         "kind": {
           "description": "conservation: a quantity identity that must close exactly. two_sided_equality: each trade's two legs agree in quantity. no_crossing: the book does not cross. sign_domain: prices/quantities lie in their declared domain. event_count: a structural count. statistic_tolerance: a stats_vector element inside a declared tolerance.",
           "enum": [
@@ -241,26 +443,64 @@
             "statistic_tolerance"
           ]
         },
-        "observed": { "type": ["number", "null"] },
-        "expected": { "type": ["number", "null"] },
+        "observed": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "expected": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "tolerance": {
           "description": "Absent means the assertion is exact (tolerance zero by construction, e.g. a conservation identity over integers).",
           "type": "object",
           "additionalProperties": false,
-          "required": ["value", "kind", "basis"],
+          "required": [
+            "value",
+            "kind",
+            "basis"
+          ],
           "properties": {
-            "value": { "type": "number", "minimum": 0 },
-            "kind": { "enum": ["absolute", "relative"] },
+            "value": {
+              "type": "number",
+              "minimum": 0
+            },
+            "kind": {
+              "enum": [
+                "absolute",
+                "relative"
+              ]
+            },
             "basis": {
               "description": "WHERE THE NUMBER CAME FROM. numerical: floating-point/summation-order error only. seed_variation: spread across seeds of the same configuration. structural: exact by construction. provisional: not yet derived from either — must be replaced before the tolerance can carry a claim.",
-              "enum": ["numerical", "seed_variation", "structural", "provisional"]
+              "enum": [
+                "numerical",
+                "seed_variation",
+                "structural",
+                "provisional"
+              ]
             },
-            "basis_note": { "type": "string" }
+            "basis_note": {
+              "type": "string"
+            }
           }
         },
-        "status": { "enum": ["held", "violated", "unverifiable"] },
-        "note": { "type": "string" }
+        "status": {
+          "enum": [
+            "held",
+            "violated",
+            "unverifiable"
+          ]
+        },
+        "note": {
+          "type": "string"
+        }
       }
     }
-  }
+  },
+  "additionalProperties": false
 }
