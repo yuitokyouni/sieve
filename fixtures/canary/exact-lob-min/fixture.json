@@ -1,13 +1,13 @@
 {
   "fixture_id": "canary/exact-lob-min",
-  "fixture_version": "1.0.0",
+  "fixture_version": "1.1.0",
   "mode": "exact",
   "status": "ready",
   "summary": "Byte-level reproduction check on a 40-step, 6-agent limit order book. Runs in milliseconds on the standard library alone.",
   "not_derived_from": "tests/golden/fixtures/ is NOT reused, in whole or in part. Those fixtures are the parity harness against the research repository; a canary that shared their inputs would go red for the same reasons the parity job already goes red, and would add no independent signal. This fixture's config, seed and engine are generated for it and live beside it.",
   "subject": {
     "engine_id": "min-lob-a",
-    "engine_version": "1.0.0",
+    "engine_version": "2.0.0",
     "entrypoint": "_engine.min_lob_a:MinLobA",
     "config_path": "config.json",
     "seed_source": "config.json:seed",
@@ -34,7 +34,7 @@
         "layer": "environment_fingerprint",
         "target": "registered environment keys at runtime_fingerprint_domain_version",
         "canonical_form": "effective_config",
-        "note": "PARTIALLY WAIVED AND DECLARED: this fixture asserts only the keys it can affect (python major.minor, rng_algorithm, rng_version). numpy/blas/dependency_lock_digest are outside its domain because it does not import them. The waiver is what makes the fixture runnable in CI before the full fingerprint plumbing lands on 2026-08-24; it is recorded here rather than left implicit."
+        "note": "NARROWED, AND THE NARROWING IS A HARNESS SELF-TEST, NOT A CONTRACT PRECEDENT. This fixture hashes only {engine_id, engine_version, rng_algorithm, rng_version} for the environment layer, excluding the interpreter version, on the declared grounds that the toy engines are exact integer arithmetic plus Decimal quantization. Any REAL engine's exact fixture uses the full runtime fingerprint domain (docs/contract/effective_config.md section 2.1). Engine 1's exact fixture is minted on 2026-08-24 in a fixed container against that full domain and is at pending_generation until then. The CI matrix runs 3.11 and 3.12 against one expected digest, so if the interpreter-independence claim is wrong this fixture reports MISMATCH and we find out."
       }
     ]
   },
@@ -44,13 +44,18 @@
       {
         "assertion_id": "exact.event_log_digest",
         "canonical_form": "event_log",
-        "expected_ref": "expected.json:output_digest"
+        "expected_ref": "expected.json:output_digest",
+        "digest_kind": "contract",
+        "note": "The CONTRACT digest, over the canonical serialization of the log (docs/canonicalization.md 3.2) — the digest the 2026-08-24 hash chain links. The stored file's byte digest is recorded separately as payload.observed.output_byte_digest and is never what the assertion is made against: two conforming writers can agree on the log and differ in bytes (gap G6)."
       },
       {
         "assertion_id": "exact.stats_vector_digest",
         "canonical_form": "stats_vector",
         "expected_ref": "expected.json:stats_vector_digest",
-        "stats_vector_spec": {"spec_id": "lob-common-surface", "spec_version": "1.0.0"}
+        "stats_vector_spec": {
+          "spec_id": "lob-common-surface",
+          "spec_version": "1.0.0"
+        }
       }
     ]
   },

@@ -1,0 +1,225 @@
+{
+  "map_id": "evidence-contract-v0.1/run-record",
+  "map_version": "1.0.0",
+  "source_of_items": "financial-abm-lab:docs/audit/sieve_12_week_calendar_2026-08-16.md (v1.1) section 2.1, verbatim. The item list is NOT this file's to choose; this file only binds each item to a field.",
+  "target_schema": "sieve/schemas/RunManifest.v2.schema.json (schema_version 2.0.0)",
+  "pointer_syntax": "RFC 6901 JSON Pointer into a RunManifest v2 document. '*' means 'every element of the array or map at this position'. A bracketed predicate ([source_kind=cli]) means 'the elements whose named member equals that value' — a readability shorthand, not RFC 6901.",
+  "profile": {
+    "profile_id": "evidence-contract-v0.1/contract",
+    "profile_version": "1.0.0",
+    "fail_rule": "EVERY item in this map is a FAIL item for the contract profile (ruling of 2026-08-20, applied 2026-08-23). A run whose manifest does not resolve an item is non-conforming; there are no WARN items in this profile. Q1 is unaffected: the SCHEMA still admits the absence (git_commit and container_digest stay optional there), and it is this profile, not the schema, that makes the absence fatal. A weaker profile may downgrade items to WARN; it may not add items.",
+    "status_is_not_reported_here": "This file is STATIC: item -> field only. Per-run pass/fail is produced by the profile checker and lives beside the manifest, never inside it. A manifest that judged itself would be a second authority on conformance, and the one easiest to make agree with itself."
+  },
+  "additional_profile_requirements": [
+    {
+      "requirement_id": "profile.l1_inline",
+      "statement": "A log supplied to the Cont harness or to a canary MUST declare l1_availability == 'inline' and carry `l1` on every event.",
+      "origin": "gap G1, resolved 2026-08-23, option (a)"
+    },
+    {
+      "requirement_id": "profile.terminal_snapshot",
+      "statement": "A conforming log MUST end with terminal book_level events enumerating resting depth per (side, price).",
+      "origin": "gap G5, resolved 2026-08-23, option (i)"
+    },
+    {
+      "requirement_id": "profile.reconstruction_agreement",
+      "statement": "OPTIONAL conformance check, not a FAIL item: replay the contract's reference book reconstruction and assert reconstructed L1 == inline `l1`. A disagreement diagnoses either an incomplete log or a difference in matching semantics, and distinguishing those two is the check's purpose.",
+      "origin": "gap G1, option (b), adopted as optional"
+    }
+  ],
+  "items": [
+    {
+      "item_ref": "2.1-1a",
+      "item": "engine_id",
+      "field_pointer": "/engine/engine_id",
+      "origin": "new",
+      "profile_status": "FAIL"
+    },
+    {
+      "item_ref": "2.1-1b",
+      "item": "engine_version",
+      "field_pointer": "/engine/engine_version",
+      "origin": "new",
+      "profile_status": "FAIL"
+    },
+    {
+      "item_ref": "2.1-1c",
+      "item": "git_commit",
+      "field_pointer": "/engine/git_commit",
+      "origin": "new",
+      "profile_status": "FAIL",
+      "note": "Distinct from /code_provenance/git_commit, which is the harness. Line 1 of 2.1 is about the engine."
+    },
+    {
+      "item_ref": "2.1-1d",
+      "item": "source digest",
+      "field_pointer": "/engine/source_digest",
+      "origin": "new",
+      "profile_status": "FAIL",
+      "note": "A dirty tree has a commit and is not that commit; the digest is what closes that gap."
+    },
+    {
+      "item_ref": "2.1-2a",
+      "item": "container digest",
+      "field_pointer": "/code_provenance/container_digest",
+      "origin": "existing",
+      "profile_status": "FAIL"
+    },
+    {
+      "item_ref": "2.1-2b",
+      "item": "dependency-lock digest",
+      "field_pointer": "/environment/dependency_lock_digest",
+      "origin": "existing",
+      "profile_status": "FAIL",
+      "note": "Reserved key of the environment map (Q2); in the runtime fingerprint domain."
+    },
+    {
+      "item_ref": "2.1-2c",
+      "item": "Python information",
+      "field_pointer": "/environment/python",
+      "origin": "existing",
+      "profile_status": "FAIL"
+    },
+    {
+      "item_ref": "2.1-2d",
+      "item": "NumPy information",
+      "field_pointer": "/environment/numpy",
+      "origin": "existing",
+      "profile_status": "FAIL"
+    },
+    {
+      "item_ref": "2.1-2e",
+      "item": "BLAS information",
+      "field_pointer": "/environment/blas",
+      "origin": "existing",
+      "profile_status": "FAIL"
+    },
+    {
+      "item_ref": "2.1-3a",
+      "item": "RNG algorithm",
+      "field_pointer": "/rng_algorithm",
+      "origin": "existing",
+      "profile_status": "FAIL",
+      "note": "Top-level typed field (Q2). Runtime fingerprint domain only — NOT the behaviour domain (ruling of 2026-08-20)."
+    },
+    {
+      "item_ref": "2.1-3b",
+      "item": "RNG version",
+      "field_pointer": "/rng_version",
+      "origin": "existing",
+      "profile_status": "FAIL"
+    },
+    {
+      "item_ref": "2.1-3c",
+      "item": "master seed",
+      "field_pointer": "/master_seed",
+      "origin": "existing",
+      "profile_status": "FAIL"
+    },
+    {
+      "item_ref": "2.1-3d",
+      "item": "seed-addressing convention",
+      "field_pointer": "/seed_convention_version",
+      "origin": "existing",
+      "profile_status": "FAIL",
+      "note": "B8. Inside behavior_config_hash: at a fixed master_seed a changed convention changes the trajectory."
+    },
+    {
+      "item_ref": "2.1-4a",
+      "item": "input artifact digests",
+      "field_pointer": "/input_artifact_digests",
+      "origin": "existing",
+      "profile_status": "FAIL",
+      "note": "Typed map, keyed by artifact id (A/B compromise, 2026-08-20). artifact_type == 'calibration' requires source_reference (if/then)."
+    },
+    {
+      "item_ref": "2.1-5a",
+      "item": "CLI",
+      "field_pointer": "/command",
+      "origin": "existing",
+      "profile_status": "FAIL",
+      "note": "Plus /effective_config/resolution_sources entries with source_kind == 'cli'. /command is required to be present though it is outside the scientific seal (machine-local)."
+    },
+    {
+      "item_ref": "2.1-5b",
+      "item": "configuration files",
+      "field_pointer": "/effective_config/resolution_sources[source_kind=config_file]",
+      "origin": "new",
+      "profile_status": "FAIL"
+    },
+    {
+      "item_ref": "2.1-5c",
+      "item": "environment variables",
+      "field_pointer": "/effective_config/resolution_sources[source_kind=environment_variable]",
+      "origin": "new",
+      "profile_status": "FAIL"
+    },
+    {
+      "item_ref": "2.1-5d",
+      "item": "resolved effective_config",
+      "field_pointer": "/effective_config/effective_config_digest",
+      "origin": "existing",
+      "profile_status": "FAIL"
+    },
+    {
+      "item_ref": "2.1-6a",
+      "item": "derived parameter effective values",
+      "field_pointer": "/effective_config/formula_bindings/*/effective_values",
+      "origin": "existing",
+      "profile_status": "FAIL",
+      "note": "Two rows can share a formula_id and differ only here; dropping this column would make ddof=1 and ddof=0 indistinguishable."
+    },
+    {
+      "item_ref": "2.1-6b",
+      "item": "formula id",
+      "field_pointer": "/effective_config/formula_bindings/*/formula_id",
+      "origin": "existing",
+      "profile_status": "FAIL"
+    },
+    {
+      "item_ref": "2.1-6c",
+      "item": "formula version",
+      "field_pointer": "/effective_config/formula_bindings/*/formula_version",
+      "origin": "existing",
+      "profile_status": "FAIL"
+    },
+    {
+      "item_ref": "2.1-7a",
+      "item": "event-log schema version",
+      "field_pointer": "/event_log_schema_version",
+      "origin": "new",
+      "profile_status": "FAIL",
+      "note": "In the manifest as well as in the log, so a manifest is checkable without opening the log."
+    },
+    {
+      "item_ref": "2.1-8a",
+      "item": "metric-suite version",
+      "field_pointer": "/metric_suite/suite_version",
+      "origin": "new",
+      "profile_status": "FAIL"
+    },
+    {
+      "item_ref": "2.1-8b",
+      "item": "metric-suite output digest",
+      "field_pointer": "/metric_suite/output_digest",
+      "origin": "new",
+      "profile_status": "FAIL",
+      "note": "Contract digest over canonical form 'output_table' (gap G6)."
+    },
+    {
+      "item_ref": "2.1-9a",
+      "item": "canary fixture version",
+      "field_pointer": "/canary_results/*/fixture_version",
+      "origin": "existing",
+      "profile_status": "FAIL"
+    },
+    {
+      "item_ref": "2.1-9b",
+      "item": "canary result",
+      "field_pointer": "/canary_results/*/result_digest",
+      "origin": "existing",
+      "profile_status": "FAIL",
+      "note": "Reference + digest only; /canary_results/*/verdict is a denormalized copy for indexing. No payload may be duplicated into the manifest."
+    }
+  ]
+}

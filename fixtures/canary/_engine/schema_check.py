@@ -22,6 +22,7 @@ gap between "validated" and "claimed validated" cannot open quietly.
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Any
 
@@ -66,19 +67,46 @@ def unsupported_keywords(schema: Any) -> set[str]:
     return found
 
 
+SCHEMA_ID_PREFIX = "https://github.com/yuitokyouni/sieve/schemas/"
+
+
 class Validator:
-    def __init__(self, schema: dict) -> None:
+    def __init__(self, schema: dict, base_dir: str | None = None) -> None:
         self.root = schema
+        self.base_dir = base_dir
+        self._external: dict[str, dict] = {}
+
+    def _external_schema(self, ref: str) -> dict:
+        """Resolve a sibling contract schema by its $id.
+
+        Cross-file refs exist so that one definition has one home: the Cont
+        harness parameter block is referenced by both the input and the output
+        schema, and copying it into each would create exactly the parallel
+        authority this contract is built to avoid.
+        """
+        name = ref[len(SCHEMA_ID_PREFIX):]
+        if "/" in name or not name.endswith(".schema.json"):
+            raise ValueError(f"refusing to resolve suspicious ref: {ref}")
+        if name not in self._external:
+            if self.base_dir is None:
+                raise ValueError(
+                    f"cannot resolve {ref}: no schema directory was given")
+            with open(os.path.join(self.base_dir, name), encoding="utf-8") as fh:
+                self._external[name] = json.load(fh)
+        return self._external[name]
 
     def _resolve(self, schema: dict) -> dict:
         while "$ref" in schema:
             ref = schema["$ref"]
+            merged = {k: v for k, v in schema.items() if k != "$ref"}
+            if ref.startswith(SCHEMA_ID_PREFIX):
+                schema = {**self._external_schema(ref), **merged}
+                continue
             if not ref.startswith("#/"):
-                raise ValueError(f"only local refs are supported: {ref}")
+                raise ValueError(f"unsupported ref: {ref}")
             node: Any = self.root
             for part in ref[2:].split("/"):
                 node = node[part]
-            merged = {k: v for k, v in schema.items() if k != "$ref"}
             schema = {**node, **merged}
         return schema
 
@@ -167,4 +195,5 @@ def validate(instance: Any, schema_path: str) -> list[str]:
             f"{sorted(unsupported)}. Either implement them or stop using them; "
             f"silently skipping them would mean claiming a check that is not "
             f"being made.")
-    return Validator(schema).errors(instance)
+    return Validator(schema, os.path.dirname(os.path.abspath(schema_path))
+                     ).errors(instance)

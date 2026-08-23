@@ -21,6 +21,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 
+import hashlib  # noqa: E402
+
 from _engine import stats_vector as sv  # noqa: E402
 from _engine.canonical import canonical_bytes, digest, digest_file  # noqa: E402
 from _engine.min_lob_a import MinLobA  # noqa: E402
@@ -30,8 +32,17 @@ from _engine.rng import VERSION as RNG_VERSION  # noqa: E402
 from _engine.schema_check import validate  # noqa: E402
 
 ENGINES = {"min-lob-a": MinLobA, "min-lob-b": MinLobB}
-COMMON_FIELDS = ("t", "event_id", "event_type", "actor_id", "actor_role",
-                 "side", "price", "quantity")
+# The CORE field set fixed by the 12-week calendar 2.1. Eight slots, nine keys
+# (slot 7, "order/trade ID", is realized by order_id + trade_id). event_id and
+# actor_id are NOT core: event_id is this log's declared total order key and
+# actor_id is optional, so neither belongs in a cross-engine comparison of the
+# common surface.
+CORE_FIELDS = ("t", "event_type", "actor_role", "side", "price", "quantity",
+               "order_id", "trade_id", "cause_id")
+# Identity-bearing core fields: their VALUES are engine-private naming
+# ("order-7" vs "ord-7"), so the comparison table compares their structure —
+# presence, type, cardinality — never the literal strings.
+IDENTITY_FIELDS = ("order_id", "trade_id", "cause_id")
 CANARY_SCHEMA = os.path.join(REPO, "schemas", "CanaryResult.schema.json")
 EVENTLOG_SCHEMA = os.path.join(REPO, "schemas", "EventLog.schema.json")
 MINTED_ON = "2026-08-21"
@@ -97,6 +108,15 @@ def run_exact(directory: str, mint: bool) -> dict:
             "effective_config"),
     }
     output_digest = digest(document, "event_log")
+    # Gap G6, resolved 2026-08-23: the CONTRACT digest (canonical
+    # serialization) is what the assertion and the hash chain use. The stored
+    # file's byte digest is a different quantity, recorded under a different
+    # name so the difference can never be mistaken for a scientific one. Here
+    # "as stored" is the indented serialization a human-readable log file would
+    # have; that it differs from the contract digest is the whole point.
+    output_byte_digest = hashlib.sha256(
+        (json.dumps(document, indent=2, sort_keys=True, ensure_ascii=False)
+         + "\n").encode()).hexdigest()
 
     expected_path = os.path.join(directory, "expected.json")
     if mint:
@@ -179,6 +199,7 @@ def run_exact(directory: str, mint: bool) -> dict:
             "precondition": layers,
             "observed": {"output_digest": output_digest,
                          "output_canonical_form": "event_log",
+                         "output_byte_digest": output_byte_digest,
                          "stats_vector_digest": stats_body["digest"]},
             "expected": exp_body,
         },
@@ -188,9 +209,9 @@ def run_exact(directory: str, mint: bool) -> dict:
 
 # ------------------------------------------------------------- semantic ----
 def _common_surface_table(reference_doc: dict, subject_doc: dict) -> dict:
-    """Per-field comparison of the common surface. ext.* is never read."""
+    """Per-field comparison of the CORE surface. ext.* is never read."""
     rows = []
-    for field in COMMON_FIELDS:
+    for field in CORE_FIELDS:
         row = {"field": field}
         for label, doc in (("reference", reference_doc), ("subject", subject_doc)):
             values = [e[field] for e in doc["events"] if field in e]
@@ -198,6 +219,12 @@ def _common_surface_table(reference_doc: dict, subject_doc: dict) -> dict:
             types = sorted({type(v).__name__ for v in values})
             if field in ("event_type", "actor_role", "side"):
                 domain = sorted({str(v) for v in values})
+            elif field in IDENTITY_FIELDS:
+                # structure, not literals: two engines name their orders
+                # differently and are still the same market.
+                domain = ["cardinality",
+                          len({v for v in values if v is not None}),
+                          "non_null", sum(1 for v in values if v is not None)]
             else:
                 numeric = [v for v in values if isinstance(v, (int, float))]
                 domain = [min(numeric), max(numeric)] if numeric else []
@@ -208,11 +235,15 @@ def _common_surface_table(reference_doc: dict, subject_doc: dict) -> dict:
     return {
         "table_id": "common-surface/lob",
         "table_version": "1.0.0",
-        "excluded": ["ext.*", "seq", "cause_event_id", "order_id", "l1"],
-        "excluded_reason": "ext.* is engine-private. seq / cause_event_id / "
-                           "order_id / l1 are provisional fields owned by open "
-                           "gaps (G1, G4, G5); comparing them would freeze a "
-                           "gap into the contract by habit.",
+        "excluded": ["ext.*", "event_id", "seq", "actor_id", "l1"],
+        "excluded_reason": "ext.* is engine-private. event_id and seq are "
+                           "total-order keys, actor_id is optional, and l1 is "
+                           "profile-required rather than core — none of them "
+                           "is part of the engine-neutral core surface fixed "
+                           "by calendar 2.1, so comparing them would compare "
+                           "representation. The three identity-bearing CORE "
+                           "fields are compared structurally (see rows), never "
+                           "by their literal values.",
         "engines": {"reference": reference_doc["engine"],
                     "subject": subject_doc["engine"]},
         "rows": rows,
@@ -237,18 +268,60 @@ def _assertions(reference: dict, subject: dict, ref_stats: dict,
             "note": f"submitted({side}) = filled + cancelled + expired + resting",
         })
 
-    imbalance = {}
+    legs: dict[str, list] = {}
     for event in subject["events"]:
         if event["event_type"] == "order_fill":
-            sign = 1 if event["side"] == "buy" else -1
-            t = event["t"]
-            imbalance[t] = imbalance.get(t, 0) + sign * event["quantity"]
-    worst = max((abs(v) for v in imbalance.values()), default=0)
+            legs.setdefault(event["trade_id"], []).append(event)
+    malformed = sum(1 for v in legs.values()
+                    if len(v) != 2
+                    or {x["side"] for x in v} != {"buy", "sell"}
+                    or v[0]["quantity"] != v[1]["quantity"])
     out.append({
-        "assertion_id": "semantic.two_sided_equality", "kind": "two_sided_equality",
-        "observed": worst, "expected": 0,
-        "status": "held" if worst == 0 else "violated",
-        "note": "max over t of |buy fill quantity - sell fill quantity|",
+        "assertion_id": "semantic.two_sided_equality",
+        "kind": "two_sided_equality",
+        "observed": malformed, "expected": 0,
+        "status": "held" if malformed == 0 else "violated",
+        "note": "per TRADE, not per t: each trade_id must carry exactly two "
+                "legs, opposite sides, equal quantity. Possible only because "
+                "trade_id is a core field (gap G5, resolved 2026-08-22); the "
+                "per-t form could be satisfied by two offsetting errors in one "
+                "step",
+    })
+
+    submitted: dict[str, float] = {}
+    consumed: dict[str, float] = {}
+    for event in subject["events"]:
+        order = event["order_id"]
+        if order is None:
+            continue
+        if event["event_type"] == "order_submit":
+            submitted[order] = submitted.get(order, 0) + event["quantity"]
+        elif event["event_type"] in ("order_fill", "order_cancel",
+                                     "order_expire"):
+            consumed[order] = consumed.get(order, 0) + event["quantity"]
+    overfilled = sum(1 for o, q in consumed.items() if q > submitted.get(o, 0))
+    out.append({
+        "assertion_id": "semantic.per_order_no_overconsumption",
+        "kind": "conservation",
+        "observed": overfilled, "expected": 0,
+        "status": "held" if overfilled == 0 else "violated",
+        "note": "no order is filled, cancelled or expired for more than it was "
+                "submitted for. Per order, not in aggregate — an aggregate "
+                "identity cannot see one order over-consumed against another "
+                "under-consumed",
+    })
+
+    residual = sum(submitted.get(o, 0) - consumed.get(o, 0) for o in submitted)
+    resting = (raw["terminal_resting_quantity_buy"]
+               + raw["terminal_resting_quantity_sell"])
+    out.append({
+        "assertion_id": "semantic.per_order_residual_matches_book",
+        "kind": "conservation",
+        "observed": residual, "expected": resting,
+        "status": "held" if residual == resting else "violated",
+        "note": "the sum of per-order residuals equals the terminal book "
+                "depth: the per-order ledger and the mechanism's own snapshot "
+                "agree",
     })
 
     spread = raw["terminal_spread"]

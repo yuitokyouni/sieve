@@ -1,13 +1,13 @@
 {
   "fixture_id": "canary/semantic-lob-min",
-  "fixture_version": "1.0.0",
+  "fixture_version": "1.1.0",
   "mode": "semantic",
   "status": "ready",
   "summary": "Cross-engine behavioural check. min-lob-b is an independent implementation of the same market as the reference min-lob-a: different data structures, opposite fill-leg order, different snapshot order, its own ext.* keys. Its event log is deliberately NOT byte-identical to the reference, so the exact canary rejects it and the semantic canary must accept it. A semantic canary that started rejecting min-lob-b would have begun depending on representation.",
   "not_derived_from": "tests/golden/fixtures/ is NOT reused. See exact-lob-min/fixture.json for the reason.",
   "subject": {
     "engine_id": "min-lob-b",
-    "engine_version": "1.0.0",
+    "engine_version": "2.0.0",
     "entrypoint": "_engine.min_lob_b:MinLobB",
     "config_path": "config.json",
     "stats_variance_method": "naive",
@@ -16,7 +16,7 @@
   },
   "reference": {
     "engine_id": "min-lob-a",
-    "engine_version": "1.0.0",
+    "engine_version": "2.0.0",
     "entrypoint": "_engine.min_lob_a:MinLobA",
     "config_path": "config.json",
     "stats_variance_method": "two_pass"
@@ -25,7 +25,8 @@
     "kind": "common_surface_comparison",
     "statement": "The two engines are DIFFERENT engines, so behavior_config_hash agreement is not available and would be meaningless: the hash covers a configuration domain, not two independent codebases. The precondition is therefore the field-by-field common-surface comparison table (ext.* excluded), emitted at run time and referenced from the CanaryResult by digest so the assertions cannot drift away from the table they rest on.",
     "table_path": "common_surface_comparison.json",
-    "same_engine_variant": "If this fixture is ever reused for the same-engine / different-environment case, the precondition kind becomes behavior_config_hash_match and the table is not produced. The two cases are different preconditions for the same assertions, which is why CanaryResult models precondition_evidence as a oneOf rather than a boolean."
+    "same_engine_variant": "If this fixture is ever reused for the same-engine / different-environment case, the precondition kind becomes behavior_config_hash_match and the table is not produced. The two cases are different preconditions for the same assertions, which is why CanaryResult models precondition_evidence as a oneOf rather than a boolean.",
+    "strictness_note": "The table records each core field's observed value DOMAIN and is pinned by digest, so a legitimate change in either engine's observed range invalidates the PRECONDITION rather than any assertion. Kept as is for the canary (ruling of 2026-08-23, gap G7): for a fixed-seed, fixed-config canary, noticing is the job. Splitting the table into a stable compatibility half and an informational observed half is a question for a general cross-engine conformance check, and is filed post-G0. The three identity-bearing core fields (order_id / trade_id / cause_id) are compared STRUCTURALLY — presence, type, cardinality — never by their literal values, because 'order-7' and 'ord-7' are the same market."
   },
   "assertion": {
     "statement": "Five families, all computable from the common 8 fields alone. Adoption and non-adoption are both recorded.",
@@ -44,7 +45,8 @@
       {
         "assertion_id": "semantic.two_sided_equality",
         "kind": "two_sided_equality",
-        "statement": "For every t, the buy-leg quantity summed over order_fill events equals the sell-leg quantity. Checked per t rather than only in total, so two offsetting errors in different steps cannot cancel."
+        "statement": "Each trade_id carries exactly two fill legs, opposite sides, equal quantity.",
+        "why_strengthened": "Per TRADE, not per t. The per-t form could be satisfied by two offsetting errors in one step. Possible only because trade_id is a core field (calendar 2.1 slot 7; gap G5 resolved 2026-08-23)."
       },
       {
         "assertion_id": "semantic.no_crossing",
@@ -66,20 +68,28 @@
         "assertion_id": "semantic.stats_vector",
         "kind": "statistic_tolerance",
         "statement": "Every stats_vector element lands within its declared tolerance of the reference, element by element (not as a norm, which would let one large deviation hide inside many small ones)."
+      },
+      {
+        "assertion_id": "semantic.per_order_no_overconsumption",
+        "kind": "conservation",
+        "statement": "No order is filled, cancelled or expired for more than it was submitted for.",
+        "why_now_possible": "order_id is a core field. An aggregate identity cannot see one order over-consumed against another under-consumed; this can. Finding: core-ising order_id immediately exposed a real id-uniqueness defect in min-lob-a, where a fully-filled order reused the next order's id."
+      },
+      {
+        "assertion_id": "semantic.per_order_residual_matches_book",
+        "kind": "conservation",
+        "statement": "The sum of per-order residuals (submitted - consumed) equals the terminal book depth.",
+        "why": "It makes the per-order ledger and the mechanism's own snapshot agree. Either alone can be self-consistent and wrong."
       }
     ],
     "not_adopted": [
       {
-        "candidate": "per-event no-crossing",
-        "reason": "Requires Level-I at every event (gap G1); adopting it now would freeze the provisional `l1` field before 2026-08-22 decides how L1 is obtained."
-      },
-      {
-        "candidate": "per-order quantity conservation",
-        "reason": "Requires `order_id` on the common surface (gap G5); the aggregate per-side identity is adopted instead and closes with the common 8 fields."
-      },
-      {
         "candidate": "order-flow-imbalance agreement between engines",
         "reason": "OFI is defined on consecutive Level-I states and inherits G1; it belongs to the Cont harness (docs/contract/cont_analysis_io.md), not to a fixture that must stay runnable before G1 is closed."
+      },
+      {
+        "candidate": "per-event no-crossing",
+        "reason": "SUPERSEDED — now adopted in effect: gap G1 is resolved (inline l1, profile-required) and the l1 invariants forbid a crossed snapshot, so non-crossing per event is a schema-level invariant checked by test_l1_invariants rather than a fixture assertion."
       }
     ]
   },
@@ -95,14 +105,14 @@
       },
       {
         "applies_to": "trade_price_mean (index 20)",
-        "value": 1e-9,
+        "value": 1e-09,
         "kind": "absolute",
         "basis": "numerical",
         "basis_note": "Both engines average the same integer-valued prices, so the difference is zero in practice; the tolerance is kept non-zero only to avoid asserting bit-equality of a float division. Observed difference at fixture minting: 0."
       },
       {
         "applies_to": "trade_price_variance (index 21)",
-        "value": 1e-8,
+        "value": 1e-08,
         "kind": "absolute",
         "basis": "numerical",
         "basis_note": "min-lob-a computes the sample variance in two passes; min-lob-b from the sum of squares. On prices near 1000 the sum-of-squares form loses accuracy to cancellation: sum(x^2) ~ 4e7 against (sum x)^2/n ~ 4e7 for a difference of order 1e1, giving a relative error of order 1e-16 * 4e7 / 1e1 ~ 4e-10 in absolute terms. Observed difference at fixture minting: 3.82e-11 tick^2. The tolerance is set two orders of magnitude above the observed value and below any difference that would indicate a changed statistic."

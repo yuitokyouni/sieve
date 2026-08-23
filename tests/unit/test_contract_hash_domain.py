@@ -37,8 +37,7 @@ EXAMPLE = json.loads(
 
 RUNTIME_KEYS = ["python", "platform", "numpy", "blas", "dependency_lock_digest",
                 "rng_algorithm", "rng_version"]
-BEHAVIOR_KEYS = ["config", "seed_convention_version", "rng_algorithm",
-                 "rng_version"]
+BEHAVIOR_KEYS = ["config", "seed_convention_version"]
 
 
 def test_registry_lists_exactly_the_approved_runtime_keys():
@@ -51,6 +50,20 @@ def test_registry_lists_exactly_the_approved_behaviour_keys():
     """B8: seed_convention_version is inside behavior_config_hash."""
     assert REGISTRY["behavior_config_domain"]["keys"] == BEHAVIOR_KEYS
     assert "seed_convention_version" in REGISTRY["behavior_config_domain"]["keys"]
+
+
+def test_rng_identity_is_runtime_only_not_behaviour():
+    """Ruling of 2026-08-20, applied 2026-08-23. behavior_config_hash exists to
+    be the precondition of a same-engine / different-environment semantic
+    canary. A different environment is often a different RNG build, so putting
+    the generator identity inside the behaviour hash would make that comparison
+    UNVERIFIABLE in exactly the case it exists to cover. The difference is not
+    lost — it moves the runtime fingerprint instead."""
+    behaviour = REGISTRY["behavior_config_domain"]["keys"]
+    runtime = REGISTRY["runtime_fingerprint_domain"]["keys"]
+    for key in ("rng_algorithm", "rng_version"):
+        assert key not in behaviour
+        assert key in runtime
 
 
 def test_adding_an_unregistered_environment_key_does_not_move_the_digest():
@@ -104,9 +117,8 @@ def test_seed_convention_version_moves_the_behaviour_hash():
     Recording only master_seed would hide that."""
     def behaviour_hash(manifest, config):
         return digest({"config": config,
-                       "seed_convention_version": manifest["seed_convention_version"],
-                       "rng_algorithm": manifest["rng_algorithm"],
-                       "rng_version": manifest["rng_version"]},
+                       "seed_convention_version":
+                           manifest["seed_convention_version"]},
                       "effective_config")
 
     config = json.loads((CANARY / "exact-lob-min" / "config.json").read_text())

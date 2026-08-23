@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/yuitokyouni/sieve/schemas/ContHarnessParameters.schema.json",
+  "title": "ContHarnessParameters",
+  "description": "Typed parameter block of the Cont-type analysis harness. Shared by ContHarnessInput and echoed verbatim into ContHarnessOutput. Contains NO threshold and NO acceptance band: those are Week 3 preregistration material and a schema that admitted one here would let it be set by accident.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["interval", "window", "depth", "shock", "sampling"],
+  "properties": {
+    "interval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "size"],
+      "properties": {
+        "kind": {
+          "description": "What one interval counts. Fixed by the log's time_unit in the sense that a step-indexed log cannot be intervalled by wall time.",
+          "enum": ["fixed_event_count", "fixed_step_count"]
+        },
+        "size": { "type": "integer", "minimum": 1 },
+        "note": { "type": "string" }
+      }
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intervals"],
+      "properties": {
+        "intervals": {
+          "description": "Intervals per window; one regression per window. At least 3, because the primary specification has an intercept and a two-parameter fit on two points is not an estimate.",
+          "type": "integer",
+          "minimum": 3
+        },
+        "note": { "type": "string" }
+      }
+    },
+    "depth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["definition", "level"],
+      "properties": {
+        "definition": { "type": "string", "minLength": 1 },
+        "level": { "type": "integer", "minimum": 1 },
+        "note": { "type": "string" }
+      }
+    },
+    "shock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "side", "size", "injection_time", "time_unit",
+                   "profile_events"],
+      "properties": {
+        "protocol": { "enum": ["market_order"] },
+        "side": { "enum": ["buy", "sell"] },
+        "size": { "type": "number", "exclusiveMinimum": 0 },
+        "injection_time": { "type": "integer" },
+        "time_unit": {
+          "description": "Restated here rather than only in the log header: an injection time without a unit is not a time.",
+          "enum": ["step", "event", "ns", "us", "ms", "s"]
+        },
+        "profile_events": { "type": "integer", "minimum": 1 },
+        "note": { "type": "string" }
+      }
+    },
+    "sampling": {
+      "description": "Event-driven, not clock-driven. A clock-driven rule needs an interpolation rule between events, and this contract does not define one.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spread_series", "depth_series"],
+      "properties": {
+        "spread_series": { "type": "string", "minLength": 1 },
+        "depth_series": { "type": "string", "minLength": 1 },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}
