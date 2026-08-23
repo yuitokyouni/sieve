@@ -150,10 +150,19 @@ def run_exact(directory: str, mint: bool) -> dict:
         entry = {"status": "match" if want == observed[layer] else "mismatch",
                  "observed_digest": observed[layer], "expected_digest": want}
         if layer == "environment_fingerprint":
+            # NO VOLATILE FACT IN A HASHED DOCUMENT. This string is part of the
+            # CanaryResult, whose digest is referenced by the run manifest, so
+            # anything machine-local written here propagates into a hash. The
+            # observed interpreter version was here until 2026-08-23 and made
+            # the minted examples unreproducible across the 3.11/3.12 CI
+            # matrix — caught by that matrix, which is what it is for. The
+            # observation now goes to stdout; its durable home is
+            # RunManifest.environment.python.
             entry["reason"] = (
-                f"observed interpreter {sys.version.split()[0]}; the "
-                f"interpreter version is outside this fixture's registered "
-                f"domain by declaration (fixture.json precondition.layers)")
+                "the interpreter version is outside this fixture's registered "
+                "domain by declaration (fixture.json precondition.layers); a "
+                "real engine's exact fixture uses the full runtime fingerprint "
+                "domain")
         layers[layer] = entry
 
     if expected is None:
@@ -506,6 +515,10 @@ def main() -> int:
         if not args.quiet:
             print(f"{name:<20} {fixture['mode']:<9} {result['verdict']:<19} "
                   f"{result['verdict_reason']}")
+    if not args.quiet:
+        print(f"(observed interpreter {sys.version.split()[0]}; outside these "
+              f"fixtures' declared domain, and deliberately absent from every "
+              f"minted document)")
         worst = max(worst, EXIT[result["verdict"]])
     return worst
 

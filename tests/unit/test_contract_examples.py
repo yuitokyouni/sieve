@@ -119,6 +119,39 @@ def test_primary_specification_has_an_intercept():
         assert secondary["ddof"] == 1
 
 
+def test_no_minted_document_contains_a_machine_local_fact():
+    """Regression, 2026-08-23. The CanaryResult carried the running
+    interpreter version in a `reason` string; that string is inside the
+    document whose digest the run manifest references, so a machine-local fact
+    was reaching a hash. The committed examples then could not be regenerated
+    on a different interpreter, and the 3.11/3.12 CI matrix caught it.
+
+    The contract's own rule is that volatile, machine-local facts stay out of
+    canonical forms. This asserts it for every minted document rather than for
+    the one string that broke."""
+    import getpass
+    import platform
+    import socket
+
+    volatile = {
+        "interpreter version": sys.version.split()[0],
+        "repository path": str(REPO),
+        "hostname": socket.gethostname(),
+        "platform": platform.platform(),
+        "user": getpass.getuser(),
+    }
+    minted = (sorted(EXAMPLES.glob("*.json"))
+              + sorted((REPO / "fixtures" / "canary" / "examples").glob("*.json"))
+              + sorted((REPO / "fixtures" / "canary").glob("*/expected.json")))
+    assert minted
+    for path in minted:
+        text = path.read_text(encoding="utf-8")
+        for label, value in volatile.items():
+            if len(value) < 4:
+                continue
+            assert value not in text, f"{path.name} contains the {label}"
+
+
 # ------------------------------------------------------ resolution map ----
 
 def _pointer_exists(schema: dict, pointer: str) -> bool:
