@@ -49,12 +49,18 @@ broken harness gets recorded as a broken model.
 `exact`: the canonicalized event log and the canonicalized `stats_vector` each
 reproduce their expected sha256.
 
-`semantic`: five families, every one of them computable from the common 8
-fields alone — conservation, two-sided equality, no-crossing, sign/domain,
-event count — plus element-wise `stats_vector` tolerance. Candidates that were
-**not** adopted are listed in the fixture with a one-line reason; the two
-rejections both come down to not wanting to freeze an open gap (G1, G5) into
-the contract by habit.
+`semantic`: families computable from the CORE field set alone (calendar §2.1:
+time, event type, actor role, side, price, quantity, order/trade ID, cause ID)
+— aggregate conservation, **per-order** conservation, **per-trade** two-sided
+equality, no-crossing, sign/domain, event count — plus element-wise
+`stats_vector` tolerance. 30 assertions in all.
+
+Two of those became possible only on 2026-08-23, when the core set was
+corrected against the calendar original and order/trade ID turned out to have
+been core all along: per-order conservation (no order consumed for more than it
+was submitted for) and per-trade leg pairing. Core-ising `order_id` immediately
+found a real defect — `min-lob-a` was reusing a fully-filled order's id for the
+next order.
 
 ### 3. `tolerance` — how much slack, and on what grounds
 
@@ -100,9 +106,35 @@ Verified by mutation on a scratch copy at authoring time (2026-08-21):
 | mid-price rule shifted one tick, config byte-identical | exact → MISMATCH (output digest differs) |
 | `min-lob-b` drops one unit of cancelled quantity | semantic → MISMATCH, naming `conservation.buy`, `conservation.sell`, and the two `cancelled_quantity` elements |
 | `expected.json` removed | exact → PENDING_GENERATION |
+| `min-lob-a` reuses an order id | caught at authoring by `test_order_ids_are_unique_and_causes_precede` |
 
 The first row is the one worth keeping: a changed input does **not** report
 the engine as wrong.
+
+## The interpreter waiver is a harness self-test, not a precedent
+
+The exact fixture's environment layer hashes only `{engine_id, engine_version,
+rng_algorithm, rng_version}` — the interpreter version is deliberately outside
+it, on the declared grounds that the toy engines are exact integer arithmetic
+plus `Decimal`. **That waiver is scoped to the toy engines and carries no
+weight in the contract.** Any real engine's exact fixture uses the full runtime
+fingerprint domain (`docs/contract/effective_config.md` §2.1). Engine 1's exact
+fixture is minted on 2026-08-24 in a fixed container against that full domain,
+and is at `pending_generation` until then.
+
+The claim is not merely asserted: CI runs 3.11 and 3.12 against one expected
+digest, so if interpreter-independence is wrong, the exact canary reports
+MISMATCH.
+
+## Two digests, never confused
+
+The exact assertion is made against the **contract digest** — sha256 over the
+canonical serialization of the log. The stored file's **byte digest** is
+recorded beside it as `payload.observed.output_byte_digest` and is never what
+is asserted. They differ for the same log, which is exactly the point (gap G6):
+two conforming writers can agree on the log and disagree on the bytes, and if
+only the byte digest existed that difference would be investigated as a
+scientific one.
 
 ## Known sharp edge
 
@@ -113,9 +145,14 @@ the table it rests on. The cost is that a legitimate change in either engine's
 observed range invalidates the precondition rather than any assertion — the
 mid-rule mutation above turns the semantic canary UNVERIFIABLE for exactly
 that reason. For a fixed-seed, fixed-config canary that is the behaviour we
-want. Whether the same table shape is right for a general cross-engine
-conformance check is an open question for the 2026-08-22 review, not something
-this fixture decided.
+want, and the 2026-08-23 review kept it (gap G7). Splitting the table into a
+stable compatibility half and an informational observed half is a question for
+a general cross-engine conformance check, and it changes what "precondition"
+means — so it is filed post-G0 rather than decided on freeze day.
+
+The three identity-bearing core fields (`order_id`, `trade_id`, `cause_id`) are
+compared **structurally** — presence, type, cardinality — never by their
+literal values, because `order-7` and `ord-7` are the same market.
 
 ## Layout
 

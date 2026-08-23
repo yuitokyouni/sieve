@@ -123,11 +123,30 @@ bundles that already exist.
 
 ---
 
-## 4. What is deliberately *not* fixed yet
+## 4. Contract digest vs byte digest (gap G6, resolved 2026-08-23)
 
-- **Parquet / binary observation files.** Only their file bytes are hashed
-  (`sha256_file`), not a canonical form of their contents. Two writers
-  producing semantically identical Parquet will disagree. Recorded as an open
-  item rather than papered over.
+Two digests, two purposes, two names. They are never reported under one name.
+
+| | contract digest | byte digest |
+|---|---|---|
+| computed over | the canonical serialization (§3) | the stored file's bytes |
+| answers | "is this the same artifact, scientifically" | "is this the same file" |
+| field | `RunManifest.outputs[].digest`, `CanaryResult…observed.output_digest` | `RunManifest.outputs[].byte_digest`, `CanaryResult…observed.output_byte_digest` |
+| binds | **yes** — the 2026-08-24 hash chain links these | no |
+
+Why the separation earns its keep: two conforming writers can produce the same
+log and different bytes — different indentation, a different Parquet
+compression setting, a different writer version. If only the byte digest
+existed, that difference would surface as a failed reproduction and be
+investigated as a scientific one. The canary demonstrates the gap concretely:
+its contract digest and byte digest for the same log differ, and only the first
+is asserted against.
+
+## 5. What is deliberately *not* fixed yet
+
+- **A canonical form for Parquet *content*.** Only file bytes are available for
+  it today. This now costs nothing at the contract layer — nothing binds to a
+  byte digest — but a Parquet artifact still cannot carry a contract digest at
+  all. Open; filed post-G0.
 - **The JSONL vs document choice for event logs.** Both are defined; which one
   a conforming producer must emit is a profile decision, not a bytes decision.

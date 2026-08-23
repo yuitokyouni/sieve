@@ -9,15 +9,19 @@ preregister it by accident. Where a definition needs a threshold to produce a
 number, the number is left `null` with the reason attached — see
 `shock_response.recovery_time` in the output example.
 
-**Positioning.** Not redefined here: the claim this harness serves is
-`claims v1.0`, and its place in the schedule is the calendar's §3.4 / Week 3.
-Those are the authorities and this document points at them.
+**Positioning.** Not redefined here. The claim this harness serves is
+`financial-abm-lab:docs/audit/W1D1_claims_freeze.md` (v1.0) §1 A; the original
+scale SESOI it feeds is the calendar §3.4; its place in the schedule is Week 3.
+Both documents were recovered and merged to `main` on 2026-08-23, so these are
+now live pointers rather than unverified ones.
 
-> **Source not located.** Neither `claims v1.0` nor the calendar original is
-> present in `yuitokyouni/sieve` or `yuitokyouni/financial-abm-lab` at the
-> commit this was written against. The pointers above are therefore
-> unverified. Recorded as a blocker rather than reconstructed from memory —
-> see the question list in the session output.
+Two consequences worth stating, because they bound what this harness is for:
+the calendar §3.4 puts the first-choice SESOI on the **cumulative price
+response (bp) to a one-standard-deviation innovation of the predictive
+signal**, with the OFI/return power share and the depth-normalized impact as
+auxiliary quantities — so OFI here is an *auxiliary* estimator, not the
+headline. And §3.4 says SESOI is **not divided by a standard error**, which is
+why nothing in this document turns an SE into a threshold.
 
 **Reference implementation.** `tools/cont_harness_reference.py`. Standard
 library only; consumes a conforming `EventLog` and emits the output document
@@ -41,27 +45,29 @@ unit. `interval` and `window` below are defined in *events* or *steps*, so a
 harness run against an `ns` log and one against a `step` log are not
 comparable and the output records which it was.
 
-**Ordering.** `event_id` is the total order (`ordering.total_order_key`).
-Consecutive-pair estimators read pairs in `event_id` order. Same-`t` ties are
-resolved by the header's `ordering.tie_break`; a log declaring `undefined`
-there **cannot be used by this harness** — OFI is defined on consecutive book
-states and an undefined order makes "consecutive" undefined. See gap **G4**.
+**Ordering.** The harness reads the log in **its own declared total order**
+(`ordering.total_order_key`), never in an order the harness assumes. A log
+declaring `t` as its total order key while admitting same-`t` ties is
+**rejected with an error**, not silently sorted: OFI is defined on consecutive
+book states, and an undefined order makes "consecutive" undefined. Gap **G4**,
+resolved 2026-08-23.
 
 ### 1.2 Level-I state series
 
 Best bid/ask price and size before and after each event.
 
-**Route: whatever the log's `l1_availability` declares** — `inline` (the
-provisional `l1` field), `snapshot`, `reconstruct`, or `none`. This harness
-requires `inline` today, because per-event OFI needs per-event L1. That is a
-consequence of gap **G1**, not a decision this document makes; when G1 closes,
-this section follows it.
+**Route: whatever the log's `l1_availability` declares.** This harness requires
+`inline`, and that is now a profile requirement rather than a preference
+(`profile.l1_inline`, gap **G1** resolved 2026-08-23).
 
-`l1` semantics, as currently emitted: for `order_submit`, the **pre-trade**
-state the order met; for every other event type, the state **after** the
-event. Consecutive-pair estimators therefore see every state transition
-exactly once, shifted by one event — no information is lost, but the
-convention has to be ratified with G1 rather than absorbed.
+`l1` semantics, ratified 2026-08-23: it is the state the book **settled into
+after the atomic operation**, shared by every event that operation produced.
+Two normative invariants come with it — no silent Level-I change, and no
+crossed snapshot — and the quantity of a limit order that comes to rest appears
+in the `l1` of its own submit event. For a consecutive-pair estimator this
+means one `e_n` per atomic operation rather than per fill leg, which is the
+right granularity for a Level-I estimator: a sweep changes the best quote once,
+net.
 
 **Missing Level-I is counted, not skipped.** A pair where either side is empty
 is excluded from the OFI sum and counted in
@@ -134,17 +140,36 @@ such definition was found at the time of writing.
 
 ### 2.2 Per-window regression
 
+**Primary specification — with intercept** (ruling of 2026-08-20):
+
 ```
-ΔP_k = β_i · OFI_k + ε_k          (ΔP in ticks, mid-price change over interval k)
+ΔP_k = α_i + β_i · OFI_k + ε_k     (ΔP in ticks, mid-price change over interval k)
 ```
 
-Per window `i`: `β̂_i`, its standard error, `R²_i`, `n`, `ddof`.
+Per window `i`: `α̂_i`, `β̂_i`, standard errors for both, centred `R²_i`, `n`,
+`ddof = 2`.
 
-Conventions, stated because an unstated one is how this project already lost a
-day: no intercept (the model is a proportionality claim about order flow, and
-an intercept would absorb a drift the claim does not include); the reported
-uncertainty is the **standard error of the slope** with `ddof = 1`; `R²` is the
-uncentred form `1 − RSS / Σy²` appropriate to a no-intercept model.
+The intercept is there because that is the equation Cont, Kukanov and Stoikov
+estimate. Dropping it would make our `β̂` incomparable with theirs, and
+comparability with theirs is the only reason to use their estimator rather than
+one of our own. CKS report the intercept as small — **check the primary source
+before that sentence is repeated anywhere load-bearing**; it is recorded here
+as the reason for the specification, not as a result.
+
+**Secondary specification — no intercept**, retained beside the primary one as
+the proportionality diagnostic:
+
+```
+ΔP_k = β_i · OFI_k + ε_k
+```
+
+`ddof = 1`, uncentred `R² = 1 − RSS / Σy²`. It answers a different question —
+is the relation proportional through the origin — and a disagreement between
+the two specifications is informative about drift rather than about order flow.
+
+Both specifications are reported for **both** OFI variants, so a reader never
+has to work out which specification a number came from. The reported
+uncertainty is a **standard error**, with its ddof and n in the record.
 
 `ΔP_k` is the change in mid price across the interval, in **ticks**, taken
 from the first and last Level-I state in the interval.
@@ -192,16 +217,22 @@ Checked against `sieve.core.models`. All three are recorded as gaps and as
 backlog items; **no existing schema was changed** (that is outside the
 approved scope).
 
+**Resolved 2026-08-23 by placement**: the harness lives *beside* the metric
+registry, with its own `ContHarnessInput` / `ContHarnessOutput` /
+`ContHarnessParameters` schemas. `MetricSpec`, `TestResult` and
+`MetricRequirements` are unmodified. The three underlying asymmetries below are
+real and stay filed as backlog items — placement solved today's problem, not
+the asymmetry.
+
 | # | what does not fit | detail | gap |
 |---|---|---|---|
 | 1 | estimator parameters | `MetricSpec` has no `parameters` field (`BaselineSpec` does). `interval`, `window`, `depth`, `shock` would be invisible — the same "declared vs actually enforced" divergence the audit already recorded three times. | **G9** |
 | 2 | the estimate + its SE | `TestResult` has `statistic_value`, `effect_size`, `ci_low`, `ci_high` — but **no `standard_error`**. The uncertainty convention requires SE with ddof and n; a CI cannot carry them. And one `TestResult` holds one scalar, so a per-window vector of `(β̂, SE, R²)` has no home. | **G10** |
 | 3 | the input contract | `MetricRequirements` is column- and geometry-oriented (`required_columns`, `supported_geometries`, `minimum_observations_per_run`). An event log with a header, a declared time unit and a Level-I availability mode cannot be declared in it. | **G11** |
 
-Consequence for 2026-08-22: the Cont harness outputs are **not**
-`TestResult`-shaped, and pretending otherwise would either drop the standard
-errors or bury them in `caveats` strings. The harness emits its own output
-document (§2, and the worked example) until G9–G11 are decided.
+Consequence: the Cont harness outputs are **not** `TestResult`-shaped, and
+pretending otherwise would either drop the standard errors or bury them in
+`caveats` strings. The harness emits its own schema-validated output document.
 
 ---
 

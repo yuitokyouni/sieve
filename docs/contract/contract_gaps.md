@@ -7,8 +7,27 @@ Each entry is either **documented** (a pointer, nothing restated) or **open**
 resolved by leaning on `ext.*`: an engine-private extension is not a contract,
 and a consumer that reads one has made a private arrangement with one engine.
 
-| id | subject | status |
+| id | subject | status at the 2026-08-23 freeze |
 |---|---|---|
+| G1 | Level-I state | **RESOLVED** — (a) inline `l1`, profile-required for OFI/canary logs; (d) terminal `book_level` snapshots otherwise; (b) reference reconstruction kept as an *optional* conformance check |
+| G2 | `actor_role` for harness injection | **RESOLVED** — `exogenous_harness` adopted |
+| G3 | canonicalization | **RESOLVED** — `canonicalization.md` |
+| G4 | time and ordering | **RESOLVED** — exactly one declared total order key; `t` only when unique and monotone; `cause_id` references a preceding element |
+| G5 | terminal state / per-order identity | **RESOLVED** — order/trade ID is core (calendar §2.1 slot 7); terminal snapshot is a profile requirement |
+| G6 | binary observation files | **RESOLVED in the contract sense** — the contract digest is over the canonical serialization; the file's byte digest is carried separately as `byte_digest` / `output_byte_digest`. The hash chain uses the canonical side. A canonical form for Parquet *content* is still undefined and stays open. |
+| G7 | comparison-table strictness | **OPEN, deferred post-G0** — the canary keeps the strict table |
+| G8 | conformance profile FAIL list | **RESOLVED** — FAIL = every §2.1 item; no WARN items |
+| G9 | `MetricSpec` cannot declare estimator parameters | **RESOLVED by placement** — the harness is beside the registry, with its own schemas. The `MetricSpec` change itself stays filed, post-G0. |
+| G10 | `TestResult` has no `standard_error` | **RESOLVED by placement** — same. `ContHarnessOutput` requires an SE with ddof and n on every estimate. |
+| G11 | `MetricRequirements` cannot express an event-log input | **RESOLVED by placement** — `ContHarnessInput` states the requirement directly (`l1_availability: "inline"`, a usable total order). |
+
+Three gaps changed the schemas; three were resolved by deciding *where* the
+harness lives rather than by widening a sealed schema; one is deferred with a
+reason. The three "resolved by placement" entries keep their backlog items:
+placement solved today's problem, and the asymmetry between `MetricSpec` and
+`BaselineSpec` is still an asymmetry.
+
+---|---|---|
 | G1 | Level-I state | **open** — recommendation below, and the 2026-08-19 decision could not be located |
 | G2 | `actor_role` for harness injection | **open** — recommended value already emitted by the fixtures |
 | G3 | canonicalization | **documented** → `canonicalization.md` |
@@ -24,6 +43,8 @@ and a consumer that reads one has made a private arrangement with one engine.
 ---
 
 ## G1 — Level-I state
+
+> **RESOLVED 2026-08-23.** (a) + (d) + (b)-as-optional, as recommended. `l1` moves from provisional to profile-required for any log supplied to the Cont harness or a canary; `l1_availability` declares the route; the two `l1` invariants are now normative (`EventLog` schema, and `tests/unit/test_contract_canary.py::test_l1_invariants`). The 2026-08-19 decision this was to be checked against is still not located — the resolution was made on the options as stated, not against it.
 
 **Question.** How does a consumer obtain best bid/ask price and size from a
 conforming event log? Order-flow imbalance is defined on *consecutive Level-I
@@ -70,6 +91,8 @@ than absorbed.
 
 ## G2 — `actor_role` for harness injection
 
+> **RESOLVED 2026-08-23.** `exogenous_harness` adopted into the enumeration.
+
 **Question.** Does `actor_role` have a value meaning "injected by the harness,
 exogenous to the model"? Without one, the shock order of a shock-response
 protocol is indistinguishable from an agent's order, and the estimator has no
@@ -108,6 +131,8 @@ choice).
 
 ## G4 — Time and ordering
 
+> **RESOLVED 2026-08-23.** Option (i) with the header making the choice explicit, and the `t`-only-when-unique constraint enforced by an `if`/`then` in the schema rather than left to prose. The causality constraint is now tested.
+
 **Question.** How are events sharing a timestamp ordered, and how does that
 relate to `cause_event_id`?
 
@@ -131,6 +156,8 @@ satisfied by both engines; not yet enforced by a conformance test.
 ---
 
 ## G5 — Terminal state and per-order identity *(new, found this session)*
+
+> **RESOLVED 2026-08-23.** Both halves. order/trade ID turned out to be *core* in calendar §2.1 all along — the gap existed because the core set had been inferred rather than read. Per-order conservation and per-trade two-sided equality are now fixture assertions; the terminal snapshot is a profile requirement. Core-ising `order_id` immediately exposed a real id-uniqueness defect in `min-lob-a`.
 
 **Found by** trying to write the quantity-conservation assertion for the
 semantic canary from the common 8 fields alone.
@@ -160,6 +187,8 @@ widens the common surface, so it deserves the review rather than a default.
 
 ## G6 — Binary observation files *(new)*
 
+> **RESOLVED 2026-08-23.** For the contract: the digest that binds is the one over the canonical serialization, and the file's byte digest is recorded under its own name (`byte_digest` in `RunManifest`, `output_byte_digest` in `CanaryResult`) for artifact identity only. The 2026-08-24 hash chain uses the canonical side. **Still open**: no canonical form is defined for Parquet content, so two writers of semantically identical Parquet still disagree on its byte digest — which now costs nothing, because nothing binds to it.
+
 `observations.parquet` and friends are hashed as file bytes only. Two writers
 producing semantically identical Parquet — different compression, different row
 group size, different writer version — produce different digests, so a
@@ -172,6 +201,8 @@ file. Not decided here; recorded so it is not discovered on 2026-08-24.
 ---
 
 ## G7 — Comparison-table strictness *(new)*
+
+> **RESOLVED 2026-08-23.** DEFERRED, not resolved. The canary keeps the strict table (option (i)). The compatibility/observed split is post-G0 work for a general cross-engine conformance check, and it changes what 'precondition' means, so it is not a freeze-day decision.
 
 The cross-engine comparison table records each common field's observed value
 **domain** (enum values seen, or numeric min/max) and the `CanaryResult` pins
@@ -193,6 +224,8 @@ it changes what "precondition" means, which is a review decision.
 
 ## G8 — Conformance profile FAIL list
 
+> **RESOLVED 2026-08-23.** FAIL = every §2.1 item, 26 of them, listed in `conformance_map.v1.json`. No WARN items in the contract profile.
+
 Q1 settles that the schema stays permissive and the profile decides severity.
 The profile itself does not exist yet: which items are FAIL, which are WARN,
 and which profiles there are (`strict` / `research` / …) is undecided. The
@@ -207,6 +240,8 @@ profile FAIL item list", and it is blocked on the same missing source as the
 ---
 
 ## G9 — `MetricSpec` cannot declare estimator parameters *(new)*
+
+> **RESOLVED 2026-08-23.** Resolved by placement: the harness carries `ContHarnessParameters`, so the parameters are typed, versioned and echoed into every output. The `MetricSpec` asymmetry with `BaselineSpec` is unchanged and stays filed.
 
 **Found by** checking whether the Cont harness outputs are expressible as
 `MetricSpec` (`cont_analysis_io.md` §3).
@@ -233,6 +268,8 @@ outside the approved scope. Filed to the backlog.
 
 ## G10 — `TestResult` cannot carry an SE, or a per-window vector *(new)*
 
+> **RESOLVED 2026-08-23.** Resolved by placement: `ContHarnessOutput.$defs.Estimate` requires `standard_error`, `n` and `ddof`, and an `if`/`then` requires the `uncertainty` string whenever a `beta` exists. Adding `standard_error` to `TestResult` stays filed.
+
 `TestResult` has `statistic_value`, `effect_size`, `ci_low`, `ci_high` — and
 no `standard_error`. The uncertainty convention (`effective_config.md` §3)
 requires an SE with its ddof and n; a confidence interval carries neither.
@@ -253,6 +290,8 @@ same review as G9.
 ---
 
 ## G11 — `MetricRequirements` cannot express an event-log input *(new)*
+
+> **RESOLVED 2026-08-23.** Resolved by placement: `ContHarnessInput` states the requirement directly — `l1_availability` must be `inline`, and a log declaring `t` as its total order key while admitting ties is rejected.
 
 `MetricRequirements` is column- and geometry-oriented: `required_columns`,
 `supported_geometries`, `minimum_observations_per_run`,
