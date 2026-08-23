@@ -30,21 +30,70 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(REPO, "fixtures", "canary"))
 
-from _engine.canonical import canonical_bytes, quantize  # noqa: E402
+from _engine.canonical import canonical_bytes, digest, quantize  # noqa: E402
 from _engine.min_lob_a import MinLobA  # noqa: E402
+from _engine.schema_check import validate  # noqa: E402
 
 SCALE = 9
 
 
 # --------------------------------------------------------------- helpers ---
-def _ols_no_intercept(x: list[float], y: list[float]) -> dict:
-    """y = b*x + e. Returns b, its standard error, R^2 and n.
+def _ols_with_intercept(x: list[float], y: list[float]) -> dict:
+    """y = a + b*x + e. PRIMARY specification (ruling of 2026-08-20).
 
-    Conventions, stated because a `+/-` whose definition is not stated is the
-    failure this project already recorded: the reported uncertainty is a
-    STANDARD ERROR (not an SD), with ddof = 1 for the one estimated parameter,
-    over the stated n. R^2 is the uncentred form appropriate to a model with
-    no intercept: 1 - RSS / sum(y^2).
+    With an intercept, because that is the specification Cont, Kukanov and
+    Stoikov estimate; dropping it would make our beta not comparable with
+    theirs, which is the only reason to use their estimator rather than one of
+    our own. CKS report the intercept as small — CHECK THE PRIMARY SOURCE
+    before that sentence is repeated anywhere that matters; it is recorded here
+    as the reason for the specification, not as a result.
+
+    Reported uncertainties are STANDARD ERRORS with ddof = 2 (intercept and
+    slope) over the stated n. R^2 is the centred form, appropriate to a model
+    with an intercept.
+    """
+    n = len(x)
+    if n < 3:
+        return {"alpha": None, "beta": None, "standard_error": None,
+                "alpha_standard_error": None, "r_squared": None, "n": n,
+                "ddof": 2,
+                "note": "not estimable: fewer than 3 points for a two-parameter fit"}
+    mean_x = sum(x) / n
+    mean_y = sum(y) / n
+    sxx = sum((v - mean_x) ** 2 for v in x)
+    if sxx == 0:
+        return {"alpha": None, "beta": None, "standard_error": None,
+                "alpha_standard_error": None, "r_squared": None, "n": n,
+                "ddof": 2, "note": "not estimable: zero regressor variation"}
+    beta = sum((a - mean_x) * (b - mean_y) for a, b in zip(x, y)) / sxx
+    alpha = mean_y - beta * mean_x
+    residuals = [b - (alpha + beta * a) for a, b in zip(x, y)]
+    rss = sum(r * r for r in residuals)
+    sigma2 = rss / (n - 2)
+    syy = sum((v - mean_y) ** 2 for v in y)
+    return {
+        "alpha": quantize(alpha, SCALE),
+        "beta": quantize(beta, SCALE),
+        "standard_error": quantize(math.sqrt(sigma2 / sxx), SCALE),
+        "alpha_standard_error": quantize(
+            math.sqrt(sigma2 * (1.0 / n + mean_x * mean_x / sxx)), SCALE),
+        "r_squared": quantize(1.0 - rss / syy, SCALE) if syy else None,
+        "n": n, "ddof": 2,
+        "specification": "with intercept (primary)",
+        "uncertainty": "standard errors of the slope and intercept; ddof = 2; "
+                       "n as stated",
+    }
+
+
+def _ols_no_intercept(x: list[float], y: list[float]) -> dict:
+    """y = b*x + e. SECONDARY specification: the proportionality diagnostic.
+
+    Kept beside the primary fit, not instead of it. It answers a different
+    question — "is the relation proportional through the origin" — and a
+    disagreement between the two is informative about drift rather than about
+    order flow. The reported uncertainty is a STANDARD ERROR (not an SD) with
+    ddof = 1 for the one estimated parameter, over the stated n. R^2 is the
+    uncentred form appropriate to a model with no intercept.
     """
     n = len(x)
     sxx = sum(v * v for v in x)
@@ -63,6 +112,7 @@ def _ols_no_intercept(x: list[float], y: list[float]) -> dict:
         "standard_error": quantize(math.sqrt(sigma2 / sxx), SCALE),
         "r_squared": quantize(1.0 - rss / syy, SCALE) if syy else None,
         "n": n, "ddof": 1,
+        "specification": "no intercept (secondary, proportionality diagnostic)",
         "uncertainty": "standard error of the slope; ddof = 1; n as stated",
     }
 
@@ -137,7 +187,15 @@ def order_flow_imbalance(events: list[dict]) -> dict:
 
 
 def analyse(document: dict, parameters: dict) -> dict:
-    events = sorted(document["events"], key=lambda e: e["event_id"])
+    # Read the log in ITS declared total order (gap G4, resolved 2026-08-23),
+    # never in an order this harness assumes.
+    ordering = document["ordering"]
+    key = ordering["total_order_key"]
+    if key == "t" and not ordering["t_unique_monotonic"]:
+        raise ValueError("log declares t as its total order key while admitting "
+                         "same-t ties; consecutive-state estimators are "
+                         "undefined on it")
+    events = sorted(document["events"], key=lambda e: e[key])
     ofi = order_flow_imbalance(events)
     terms = ofi["terms"]
 
@@ -175,9 +233,13 @@ def analyse(document: dict, parameters: dict) -> dict:
             "n_intervals": len(block),
             "mean_depth": (quantize(sum(depths) / len(depths), SCALE)
                            if depths else None),
-            "primary_non_price_changing": _ols_no_intercept(
+            "primary_non_price_changing": _ols_with_intercept(
                 [b["ofi_non_price_changing"] for b in block], y),
-            "diagnostic_all": _ols_no_intercept(
+            "secondary_non_price_changing_no_intercept": _ols_no_intercept(
+                [b["ofi_non_price_changing"] for b in block], y),
+            "diagnostic_all": _ols_with_intercept(
+                [b["ofi_all"] for b in block], y),
+            "diagnostic_all_no_intercept": _ols_no_intercept(
                 [b["ofi_all"] for b in block], y),
         })
 
@@ -239,7 +301,7 @@ def analyse(document: dict, parameters: dict) -> dict:
                             "spread_deviation": quantize(deviation, SCALE)})
 
     return {
-        "schema_version": "0.1.0-draft",
+        "schema_version": "1.0.0",
         "harness_id": "cont-type-lob-harness",
         "harness_version": "0.1.0",
         "source_log": {"log_id": document["log_id"], "engine": document["engine"],
@@ -320,14 +382,21 @@ def main() -> int:
                                          "exact-lob-min", "config.json")))
     document = MinLobA(config).run()
     result = analyse(document, DEFAULT_PARAMETERS)
+    errors = validate(result, os.path.join(REPO, "schemas",
+                                           "ContHarnessOutput.schema.json"))
+    if errors:
+        raise AssertionError("harness output does not conform to its own "
+                             "schema:\n" + "\n".join(errors))
 
     if args.out:
         os.makedirs(args.out, exist_ok=True)
         with open(os.path.join(args.out, "ContHarnessInput.example.json"),
                   "wb") as fh:
             fh.write(canonical_bytes({
+                "schema_version": "1.0.0",
                 "event_log_ref": "fixtures/canary/exact-lob-min (min-lob-a, "
                                  "regenerated by run_canary.py)",
+                "event_log_digest": digest(document, "event_log"),
                 "event_log_header": {k: v for k, v in document.items()
                                      if k != "events"},
                 "event_log_first_events": document["events"][:3],

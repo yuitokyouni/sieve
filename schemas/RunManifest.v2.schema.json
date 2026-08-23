@@ -9,6 +9,7 @@
     "schema_version",
     "run_id",
     "created_at",
+    "engine",
     "producer",
     "command",
     "master_seed",
@@ -35,31 +36,108 @@
       "type": "string",
       "format": "date-time"
     },
+    "engine": {
+      "description": "Calendar 2.1 line 1. The ENGINE that produced the run — distinct from `producer`, which is the tool that wrote this manifest. Conflating them is how a run gets attributed to the harness version instead of the model version.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "engine_id",
+        "engine_version"
+      ],
+      "properties": {
+        "engine_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "engine_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "git_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$"
+        },
+        "source_digest": {
+          "$ref": "#/$defs/Sha256Hex",
+          "description": "Digest of the engine source tree as run. Distinct from git_commit: a dirty tree has a commit and is not that commit."
+        }
+      }
+    },
     "producer": {
       "description": "What wrote this manifest.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["tool_id", "tool_version"],
+      "required": [
+        "tool_id",
+        "tool_version"
+      ],
       "properties": {
-        "tool_id": { "type": "string", "minLength": 1 },
-        "tool_version": { "type": "string", "minLength": 1 }
+        "tool_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tool_version": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "command": {
       "description": "Volatile (machine-local). Full argv as invoked, including every override flag. Excluded from the scientific seal but REQUIRED to be present: BACKLOG 'Evidence Contract v0.1' item 3 (CLI override paths must be recoverable).",
       "type": "string"
     },
+    "event_log_schema_version": {
+      "description": "Calendar 2.1 line 7. Version of the EventLog schema the run's event log conforms to. Recorded in the manifest, not only inside the log, so a manifest can be checked without opening the log.",
+      "type": "string",
+      "minLength": 1
+    },
+    "metric_suite": {
+      "description": "Calendar 2.1 line 8.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suite_id",
+        "suite_version"
+      ],
+      "properties": {
+        "suite_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "suite_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "suite_hash": {
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "output_digest": {
+          "$ref": "#/$defs/Sha256Hex",
+          "description": "Contract digest of the suite's output, canonical form 'output_table'."
+        }
+      }
+    },
     "code_provenance": {
       "description": "Q1: OPTIONAL at the schema layer. Absence is a WARN surfaced by the reader, never a schema error. FAIL enforcement, where a profile requires it, is done by the conformance profile layer (docs/contract/evidence_contract_v0.1.md §6), not here.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "git_commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
-        "git_dirty": { "type": "boolean" },
-        "container_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+        "git_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$"
+        },
+        "git_dirty": {
+          "type": "boolean"
+        },
+        "container_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
       }
     },
-    "master_seed": { "type": "integer" },
+    "master_seed": {
+      "type": "integer"
+    },
     "seed_convention_version": {
       "description": "B8. Version of the seed-derivation convention (master SeedSequence -> named children, spawn order). Included in the behavior_config_hash domain: changing the convention changes behaviour even at a fixed master_seed, so it must move the hash.",
       "type": "string",
@@ -70,11 +148,24 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "entropy"],
+        "required": [
+          "name",
+          "entropy"
+        ],
         "properties": {
-          "name": { "type": "string", "minLength": 1 },
-          "entropy": { "type": "integer" },
-          "spawn_key": { "type": "array", "items": { "type": "integer" } }
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "entropy": {
+            "type": "integer"
+          },
+          "spawn_key": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
         }
       }
     },
@@ -97,58 +188,65 @@
       "$ref": "#/$defs/EnvironmentFingerprint"
     },
     "input_artifact_digests": {
-      "description": "Every declared input, content-addressed. BACKLOG 'Evidence Contract v0.1' item 1: calibration constants are inputs with a source reference and a digest, not code defaults.",
-      "type": "array",
-      "items": { "$ref": "#/$defs/InputArtifactDigest" }
+      "description": "Every declared input, content-addressed. TYPED MAP (the A/B compromise approved 2026-08-20): the key is the artifact id, so an id cannot be duplicated and a lookup needs no scan; the value is a fully typed record, so 'which kind of input is this and where did it come from' is not lost the way a flat id->digest map loses it. Calendar 2.1 line 4. Backlog 'Evidence Contract v0.1' item 1: calibration constants are inputs with a source reference and a digest, not code defaults.",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$",
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/InputArtifactDigest"
+      }
     },
     "effective_config": {
       "$ref": "#/$defs/EffectiveConfigRef"
     },
-    "conformance_map": {
-      "description": "The compatibility-resolution map ('ryoritsu-kai map'): per required contract item, how this run satisfied it and against which field. This is the machine-readable half of the (2.1 item -> field) resolution table; the schema stays permissive (Q1) while the profile decides severity. INTERPRETATION FLAG: the phrase in the W1D6 brief is read as 'the map that makes the schema-optional / profile-enforced split inspectable per run'. Confirm at the 2026-08-22 review.",
+    "conformance_profile_id": {
+      "description": "DECLARATION ONLY: which conformance profile this run claims to satisfy. The manifest does NOT carry per-item pass/fail. A manifest that judged itself would be a second authority on conformance, and the one that is easiest to make agree with itself. The static item -> field_pointer table is docs/contract/conformance_map.v1.json; per-run status is reported by the profile checker, beside the manifest, not inside it.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["profile_id", "profile_version", "items"],
+      "required": [
+        "profile_id",
+        "profile_version"
+      ],
       "properties": {
-        "profile_id": { "type": "string", "minLength": 1 },
-        "profile_version": { "type": "string", "minLength": 1 },
-        "items": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["item_ref", "status"],
-            "properties": {
-              "item_ref": {
-                "description": "Stable id of the required item, e.g. '2.1-03'.",
-                "type": "string",
-                "minLength": 1
-              },
-              "field_pointer": {
-                "description": "RFC 6901 JSON Pointer into this manifest (or into a referenced artifact) carrying the value.",
-                "type": "string"
-              },
-              "status": {
-                "description": "Classification only. SATISFIED: present and verified. WARN: absent or unverified where the profile tolerates it. FAIL: absent where the profile requires it. UNVERIFIABLE: declared but its digest could not be obtained at audit time (B5, audit-time classification).",
-                "enum": ["SATISFIED", "WARN", "FAIL", "UNVERIFIABLE"]
-              },
-              "note": { "type": "string" }
-            }
-          }
+        "profile_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profile_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "map_ref": {
+          "type": "string",
+          "description": "Path of the static item -> field pointer table this profile is defined against."
+        },
+        "map_digest": {
+          "$ref": "#/$defs/Sha256Hex"
         }
       }
     },
     "canary_results": {
       "description": "References to canary evaluations attached to this run. REFERENCE + DIGEST ONLY: no CanaryResult payload may be duplicated here (enforced structurally by additionalProperties:false and by the absence of any payload-shaped property). Placement rationale in docs/contract/evidence_contract_v0.1.md §5.",
       "type": "array",
-      "items": { "$ref": "#/$defs/CanaryResultRef" }
+      "items": {
+        "$ref": "#/$defs/CanaryResultRef"
+      }
     },
     "outputs": {
       "description": "Content-addressed outputs of this run, in the canonical forms defined by docs/contract/canonicalization.md.",
       "type": "array",
-      "items": { "$ref": "#/$defs/OutputArtifactDigest" }
+      "items": {
+        "$ref": "#/$defs/OutputArtifactDigest"
+      }
     },
-    "notes": { "type": "array", "items": { "type": "string" } }
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
   },
   "$defs": {
     "Sha256Hex": {
@@ -159,13 +257,29 @@
     "EnvironmentFingerprint": {
       "description": "Q2, reserved-key scheme. A free string->string map whose RESERVED keys are named below for typing and documentation. Only the keys registered in docs/contract/effective_config.md (registry section) enter environment_fingerprint_digest; unregistered keys are recorded but not hashed. dependency_lock_digest is a RESERVED KEY here, not a top-level field.",
       "type": "object",
-      "propertyNames": { "pattern": "^[a-z][a-z0-9_.]*$" },
-      "additionalProperties": { "type": "string" },
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_.]*$"
+      },
+      "additionalProperties": {
+        "type": "string"
+      },
       "properties": {
-        "python": { "type": "string", "description": "Interpreter version, e.g. '3.11.15'. Hashed." },
-        "platform": { "type": "string", "description": "platform.platform(). Hashed." },
-        "numpy": { "type": "string", "description": "numpy version. Hashed." },
-        "blas": { "type": "string", "description": "BLAS/LAPACK implementation identity, e.g. 'openblas 0.3.27'. Hashed." },
+        "python": {
+          "type": "string",
+          "description": "Interpreter version, e.g. '3.11.15'. Hashed."
+        },
+        "platform": {
+          "type": "string",
+          "description": "platform.platform(). Hashed."
+        },
+        "numpy": {
+          "type": "string",
+          "description": "numpy version. Hashed."
+        },
+        "blas": {
+          "type": "string",
+          "description": "BLAS/LAPACK implementation identity, e.g. 'openblas 0.3.27'. Hashed."
+        },
         "dependency_lock_digest": {
           "$ref": "#/$defs/Sha256Hex",
           "description": "sha256 of the canonicalized dependency lock file. Reserved key, hashed."
@@ -175,26 +289,56 @@
     "InputArtifactDigest": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["artifact_id", "artifact_type", "digest_algorithm", "verification"],
+      "required": [
+        "artifact_type",
+        "digest_algorithm",
+        "verification"
+      ],
       "properties": {
-        "artifact_id": { "type": "string", "minLength": 1 },
         "artifact_type": {
-          "enum": ["dataset", "calibration", "config", "code", "reference", "other"]
+          "enum": [
+            "dataset",
+            "calibration",
+            "config",
+            "code",
+            "reference",
+            "other"
+          ]
         },
         "digest": {
           "$ref": "#/$defs/Sha256Hex",
           "description": "Absent iff verification.status == 'unverifiable'."
         },
-        "digest_algorithm": { "const": "sha256" },
+        "digest_algorithm": {
+          "const": "sha256"
+        },
         "source_reference": {
           "description": "Where the artifact came from, outside this repository's code. REQUIRED when artifact_type == 'calibration' (see the if/then below).",
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "locator"],
+          "required": [
+            "kind",
+            "locator"
+          ],
           "properties": {
-            "kind": { "enum": ["uri", "doi", "measurement", "vendor", "derived", "manual"] },
-            "locator": { "type": "string", "minLength": 1 },
-            "retrieved_at": { "type": "string", "format": "date-time" },
+            "kind": {
+              "enum": [
+                "uri",
+                "doi",
+                "measurement",
+                "vendor",
+                "derived",
+                "manual"
+              ]
+            },
+            "locator": {
+              "type": "string",
+              "minLength": 1
+            },
+            "retrieved_at": {
+              "type": "string",
+              "format": "date-time"
+            },
             "evidence_basis": {
               "description": "How the value's provenance is established. 'external_measurement_not_rerunnable' is the case that motivated this field (BACKLOG, phi/sigma).",
               "enum": [
@@ -207,37 +351,89 @@
             }
           }
         },
-        "role": { "type": "string", "description": "Free-text role of this input in the run." },
+        "role": {
+          "type": "string",
+          "description": "Free-text role of this input in the run."
+        },
         "verification": {
           "description": "B5, AUDIT-TIME CLASSIFICATION. Separate clause from the run-time measure (fail-fast). 'unverifiable' means: the input was declared, but no digest could be obtained for it at consumption time.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["status"],
+          "required": [
+            "status"
+          ],
           "properties": {
-            "status": { "enum": ["verified", "unverifiable"] },
+            "status": {
+              "enum": [
+                "verified",
+                "unverifiable"
+              ]
+            },
             "reason": {
               "description": "Required when status == 'unverifiable'.",
               "type": "string",
               "minLength": 1
             }
           },
-          "if": { "properties": { "status": { "const": "unverifiable" } } },
-          "then": { "required": ["status", "reason"] }
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unverifiable"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "status",
+              "reason"
+            ]
+          }
         }
       },
       "allOf": [
         {
-          "if": { "properties": { "artifact_type": { "const": "calibration" } }, "required": ["artifact_type"] },
-          "then": { "required": ["source_reference"] }
+          "if": {
+            "properties": {
+              "artifact_type": {
+                "const": "calibration"
+              }
+            },
+            "required": [
+              "artifact_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "source_reference"
+            ]
+          }
         },
         {
           "if": {
-            "properties": { "verification": { "properties": { "status": { "const": "verified" } }, "required": ["status"] } },
-            "required": ["verification"]
+            "properties": {
+              "verification": {
+                "properties": {
+                  "status": {
+                    "const": "verified"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            },
+            "required": [
+              "verification"
+            ]
           },
-          "then": { "required": ["digest"] }
+          "then": {
+            "required": [
+              "digest"
+            ]
+          }
         }
-      ]
+      ],
+      "description": "One declared input. The artifact id is the MAP KEY, not a field: carrying it in both places would allow them to disagree."
     },
     "EffectiveConfigRef": {
       "description": "The resolved configuration actually in force, after defaults, files and CLI overrides. BACKLOG 'Evidence Contract v0.1' item 3.",
@@ -271,10 +467,19 @@
           "description": "Pointer to the registry document and its version that defines the two hash domains and the formula registry.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["document", "version"],
+          "required": [
+            "document",
+            "version"
+          ],
           "properties": {
-            "document": { "type": "string", "minLength": 1 },
-            "version": { "type": "string", "minLength": 1 }
+            "document": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         },
         "formula_bindings": {
@@ -283,11 +488,58 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["formula_id", "formula_version"],
+            "required": [
+              "formula_id",
+              "formula_version"
+            ],
             "properties": {
-              "formula_id": { "type": "string", "minLength": 1 },
-              "formula_version": { "type": "string", "minLength": 1 },
-              "effective_values": { "type": "object" }
+              "formula_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "formula_version": {
+                "type": "string",
+                "minLength": 1
+              },
+              "effective_values": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "resolution_sources": {
+          "description": "Calendar 2.1 line 5: what was resolved INTO the effective config — CLI flags, config files, environment variables, code defaults. The resolved result is `effective_config_digest`; this is the audit trail of how it got that way. Backlog 'Evidence Contract v0.1' item 3: without it, an override path produces a run that is off-spec with nothing recording it.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source_kind"
+            ],
+            "properties": {
+              "source_kind": {
+                "enum": [
+                  "cli",
+                  "config_file",
+                  "environment_variable",
+                  "default"
+                ]
+              },
+              "ref": {
+                "type": "string",
+                "description": "Flag name, file path, variable name, or the code location the default came from."
+              },
+              "digest": {
+                "$ref": "#/$defs/Sha256Hex",
+                "description": "For config_file sources."
+              },
+              "keys_set": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Which effective-config keys this source決定した. Makes 'who won' recoverable when two sources touch one key."
+              }
             }
           }
         }
@@ -296,12 +548,30 @@
     "CanaryResultRef": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["fixture_id", "fixture_version", "mode", "result_digest"],
+      "required": [
+        "fixture_id",
+        "fixture_version",
+        "mode",
+        "result_digest"
+      ],
       "properties": {
-        "fixture_id": { "type": "string", "minLength": 1 },
-        "fixture_version": { "type": "string", "minLength": 1 },
-        "fixture_digest": { "$ref": "#/$defs/Sha256Hex" },
-        "mode": { "enum": ["exact", "semantic"] },
+        "fixture_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixture_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixture_digest": {
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "mode": {
+          "enum": [
+            "exact",
+            "semantic"
+          ]
+        },
         "result_digest": {
           "$ref": "#/$defs/Sha256Hex",
           "description": "sha256 of the canonicalized CanaryResult document."
@@ -312,24 +582,55 @@
         },
         "verdict": {
           "description": "Copy of the referenced result's verdict, for reading without dereferencing. Classification only.",
-          "enum": ["MATCH", "MISMATCH", "UNVERIFIABLE", "PENDING_GENERATION"]
+          "enum": [
+            "MATCH",
+            "MISMATCH",
+            "UNVERIFIABLE",
+            "PENDING_GENERATION"
+          ]
         }
       }
     },
     "OutputArtifactDigest": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["artifact_id", "canonical_form", "digest", "digest_algorithm"],
+      "required": [
+        "artifact_id",
+        "canonical_form",
+        "digest",
+        "digest_algorithm"
+      ],
       "properties": {
-        "artifact_id": { "type": "string", "minLength": 1 },
+        "artifact_id": {
+          "type": "string",
+          "minLength": 1
+        },
         "canonical_form": {
           "description": "Which canonicalization rule produced the bytes that were hashed (docs/contract/canonicalization.md).",
-          "enum": ["effective_config", "event_log", "stats_vector", "output_table", "bundle"]
+          "enum": [
+            "effective_config",
+            "event_log",
+            "stats_vector",
+            "output_table",
+            "bundle"
+          ]
         },
-        "digest": { "$ref": "#/$defs/Sha256Hex" },
-        "digest_algorithm": { "const": "sha256" },
-        "path": { "type": "string" }
-      }
+        "digest": {
+          "$ref": "#/$defs/Sha256Hex",
+          "description": "Contract digest: sha256 over the canonical serialization. Chain-bearing."
+        },
+        "digest_algorithm": {
+          "const": "sha256"
+        },
+        "path": {
+          "type": "string"
+        },
+        "byte_digest": {
+          "$ref": "#/$defs/Sha256Hex",
+          "description": "sha256 of the stored file's bytes. Artifact identity only; never used by the hash chain."
+        }
+      },
+      "description": "One content-addressed output. `digest` is the CONTRACT digest, computed over the canonical serialization named by `canonical_form` — that is the digest the 2026-08-24 hash chain links. `byte_digest` is a different quantity with a different purpose: the sha256 of the file as stored, for artifact identity and transfer integrity. They are given separate names because two writers can agree on the contract digest and disagree on the bytes, and reporting one under the other's name is how that difference gets mistaken for a scientific one (gap G6)."
     }
   }
 }

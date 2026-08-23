@@ -273,6 +273,10 @@
         },
         "stats_vector_digest": {
           "$ref": "#/$defs/Sha256Hex"
+        },
+        "output_byte_digest": {
+          "$ref": "#/$defs/Sha256Hex",
+          "description": "sha256 of the stored log file's bytes. Recorded alongside the contract digest, never in place of it (gap G6): the assertion is made against `output_digest`, the canonical serialization, because two conforming writers can produce different bytes for the same log."
         }
       }
     },

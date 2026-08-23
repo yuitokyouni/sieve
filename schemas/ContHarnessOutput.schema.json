@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/yuitokyouni/sieve/schemas/ContHarnessOutput.schema.json",
+  "title": "ContHarnessOutput",
+  "description": "Output contract of the Cont-type analysis harness. Placed beside the metric registry rather than inside it (gaps G9-G11, resolved 2026-08-23): TestResult holds one scalar and has no standard_error, so a per-window vector of (beta, SE, R-squared) could only be carried by flattening the window index into an id and putting the uncertainty in a caveat string. EVERY estimate here carries a standard error with its ddof and n. NO THRESHOLD AND NO ACCEPTANCE BAND appears anywhere in this schema; recovery_time and half_life are null-with-reason because their definitions need an epsilon, and epsilon is Week 3 preregistration material.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "harness_id", "harness_version", "source_log",
+               "parameters", "coverage", "outputs", "estimator_definitions"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "harness_id": { "type": "string", "minLength": 1 },
+    "harness_version": { "type": "string", "minLength": 1 },
+    "source_log": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["log_id", "engine", "time_unit", "n_events"],
+      "properties": {
+        "log_id": { "type": "string" },
+        "engine": {
+          "type": "object",
+          "required": ["engine_id", "engine_version"],
+          "properties": {
+            "engine_id": { "type": "string" },
+            "engine_version": { "type": "string" },
+            "git_commit": { "type": "string" }
+          }
+        },
+        "time_unit": { "enum": ["step", "event", "ns", "us", "ms", "s"] },
+        "n_events": { "type": "integer", "minimum": 0 },
+        "event_log_digest": { "$ref": "#/$defs/Sha256Hex" }
+      }
+    },
+    "parameters": { "$ref": "https://github.com/yuitokyouni/sieve/schemas/ContHarnessParameters.schema.json" },
+    "coverage": {
+      "description": "What the estimators actually saw. Reported, never implied: a coverage number that is not printed reads as full coverage.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consecutive_pairs", "excluded_missing_l1", "intervals",
+                   "windows"],
+      "properties": {
+        "consecutive_pairs": { "type": "integer", "minimum": 0 },
+        "excluded_missing_l1": {
+          "description": "Pairs dropped because one side of the book was empty.",
+          "type": "integer", "minimum": 0
+        },
+        "price_changing_pairs": { "type": "integer", "minimum": 0 },
+        "intervals": { "type": "integer", "minimum": 0 },
+        "windows": { "type": "integer", "minimum": 0 },
+        "note": { "type": "string" }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ofi_regression_by_window", "depth_impact",
+                   "spread_and_depth_summary", "shock_response"],
+      "properties": {
+        "ofi_regression_by_window": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/WindowRegression" }
+        },
+        "depth_impact": { "$ref": "#/$defs/DepthImpact" },
+        "spread_and_depth_summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["spread", "bid_size", "ask_size"],
+          "properties": {
+            "spread": { "$ref": "#/$defs/Summary" },
+            "bid_size": { "$ref": "#/$defs/Summary" },
+            "ask_size": { "$ref": "#/$defs/Summary" }
+          }
+        },
+        "shock_response": { "$ref": "#/$defs/ShockResponse" }
+      }
+    },
+    "estimator_definitions": {
+      "description": "Pointer to the prose that defines these estimators. A number whose definition is not reachable from it is not a result.",
+      "type": "string", "minLength": 1
+    }
+  },
+  "$defs": {
+    "Sha256Hex": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "Estimate": {
+      "description": "One fitted specification. `beta` and `standard_error` are null together, with a `note` saying why, whenever the fit was not estimable — never silently absent, and never zero standing in for missing.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["beta", "standard_error", "n", "ddof"],
+      "properties": {
+        "alpha": { "type": ["number", "null"] },
+        "alpha_standard_error": { "type": ["number", "null"] },
+        "beta": { "type": ["number", "null"] },
+        "standard_error": { "type": ["number", "null"], "minimum": 0 },
+        "r_squared": { "type": ["number", "null"] },
+        "n": { "type": "integer", "minimum": 0 },
+        "ddof": { "type": "integer", "minimum": 0 },
+        "specification": { "type": "string" },
+        "uncertainty": {
+          "description": "States what the reported +/- IS — SE not SD, its ddof, its n. Required whenever an estimate exists.",
+          "type": "string"
+        },
+        "note": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "description": "An estimate that exists must say what its uncertainty means.",
+          "if": { "properties": { "beta": { "type": "number" } },
+                  "required": ["beta"] },
+          "then": { "required": ["uncertainty", "standard_error"] }
+        }
+      ]
+    },
+    "WindowRegression": {
+      "description": "One window. The PRIMARY specification carries an intercept, matching the estimating equation of Cont, Kukanov and Stoikov (2014) so that beta stays comparable with theirs; the no-intercept fit is retained beside it as the proportionality diagnostic. Both are reported for both OFI variants, so a reader never has to guess which specification a number came from.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["window_index", "n_intervals", "primary_non_price_changing"],
+      "properties": {
+        "window_index": { "type": "integer", "minimum": 0 },
+        "n_intervals": { "type": "integer", "minimum": 0 },
+        "mean_depth": { "type": ["number", "null"] },
+        "primary_non_price_changing": { "$ref": "#/$defs/Estimate" },
+        "secondary_non_price_changing_no_intercept": { "$ref": "#/$defs/Estimate" },
+        "diagnostic_all": { "$ref": "#/$defs/Estimate" },
+        "diagnostic_all_no_intercept": { "$ref": "#/$defs/Estimate" }
+      }
+    },
+    "DepthImpact": {
+      "description": "log beta_i = log c - lambda log D_i + nu_i, fitted across windows. The value CKS report for lambda is deliberately absent: it belongs in the preregistration after checking the primary source, not in an output document.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lambda", "standard_error", "n"],
+      "properties": {
+        "lambda": { "type": ["number", "null"] },
+        "standard_error": { "type": ["number", "null"], "minimum": 0 },
+        "log_c": { "type": ["number", "null"] },
+        "n": {
+          "description": "Windows that entered the fit — those with positive depth and positive beta, since the log demands it. Reported so that a small n is visible rather than inferred.",
+          "type": "integer", "minimum": 0
+        },
+        "ddof": { "type": "integer", "minimum": 0 },
+        "uncertainty": { "type": "string" },
+        "note": { "type": "string" }
+      }
+    },
+    "Summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n", "mean", "sd", "standard_error", "min", "max"],
+      "properties": {
+        "n": { "type": "integer", "minimum": 0 },
+        "mean": { "type": ["number", "null"] },
+        "sd": { "type": ["number", "null"], "minimum": 0 },
+        "standard_error": { "type": ["number", "null"], "minimum": 0 },
+        "min": { "type": ["number", "null"] },
+        "max": { "type": ["number", "null"] },
+        "uncertainty": { "type": "string" }
+      }
+    },
+    "ShockResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shock_event_id", "shock_t", "identified_by",
+                   "baseline_spread", "deviation_profile", "recovery_time",
+                   "recovery_time_note", "half_life", "half_life_note"],
+      "properties": {
+        "shock_event_id": { "type": ["integer", "string", "null"] },
+        "shock_t": { "type": ["integer", "null"] },
+        "identified_by": {
+          "description": "How the injected event was found. In a conforming log this is actor_role == 'exogenous_harness' (gap G2): without that value the injection is indistinguishable from an agent's order and this section has no subject.",
+          "type": "string", "minLength": 1
+        },
+        "baseline_spread": { "$ref": "#/$defs/Summary" },
+        "deviation_profile": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["events_since_shock", "t", "spread",
+                         "spread_deviation"],
+            "properties": {
+              "events_since_shock": { "type": "integer", "minimum": 0 },
+              "t": { "type": "integer" },
+              "spread": { "type": ["number", "null"] },
+              "spread_deviation": { "type": ["number", "null"] }
+            }
+          }
+        },
+        "recovery_time": {
+          "description": "MUST be null in a v0.1 output. Recovery time is the first return into a baseline band of +/- epsilon; epsilon is a threshold, and thresholds are preregistration material. The const below is what stops one being set by accident before Week 3.",
+          "const": null
+        },
+        "recovery_time_note": { "type": "string", "minLength": 1 },
+        "half_life": {
+          "description": "MUST be null in a v0.1 output, for the same reason: the fit needs a declared band to define the deviation being halved.",
+          "const": null
+        },
+        "half_life_note": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

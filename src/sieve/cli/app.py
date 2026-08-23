@@ -381,20 +381,45 @@ def baselines_list():
         typer.echo(f"    absent:  {', '.join(spec.mechanisms_absent) or '—'}")
 
 
+# Evidence Contract v0.1 (frozen 2026-08-23): these files under schemas/ are
+# NORMATIVE and hand-authored. `sieve schemas export` generates the pydantic
+# side of the house and must never write over them — if it did, the normative
+# text would be silently replaced by whatever the implementation happened to
+# be, which is the precise failure this contract exists to prevent. Any future
+# pydantic-backed version of these artifacts has to pass an "export output ==
+# normative file" test before this guard is relaxed.
+CONTRACT_SCHEMA_FILES = frozenset({
+    "RunManifest.v2.schema.json",
+    "EventLog.schema.json",
+    "CanaryResult.schema.json",
+    "ContHarnessInput.schema.json",
+    "ContHarnessOutput.schema.json",
+    "ContHarnessParameters.schema.json",
+})
+
+EXPORTED_MODELS = ("EvidenceBundle", "ModelManifest", "DatasetManifest",
+                   "ClaimSpec", "MetricSpec", "BaselineSpec", "TestResult",
+                   "FailureFinding", "ValidationProfile", "TestSuiteManifest",
+                   "RunManifest",
+                   # research workbench artifacts (additive, v0.4.0)
+                   "InspectBundle", "FigureSpec", "FigureResult",
+                   "GeometrySummary", "MetricRequirements")
+
+
 @schemas_app.command("export")
 def schemas_export(out: Path = typer.Option(Path("schemas"), "--out")):
     """Write the JSON Schema of every durable artifact to *.schema.json."""
     from sieve.core import models
     out.mkdir(parents=True, exist_ok=True)
-    for name in ("EvidenceBundle", "ModelManifest", "DatasetManifest",
-                 "ClaimSpec", "MetricSpec", "BaselineSpec", "TestResult",
-                 "FailureFinding", "ValidationProfile", "TestSuiteManifest",
-                 "RunManifest",
-                 # research workbench artifacts (additive, v0.4.0)
-                 "InspectBundle", "FigureSpec", "FigureResult",
-                 "GeometrySummary", "MetricRequirements"):
+    for name in EXPORTED_MODELS:
+        filename = f"{name}.schema.json"
+        if filename in CONTRACT_SCHEMA_FILES:
+            raise RuntimeError(
+                f"{filename} is a normative Evidence Contract schema and is "
+                f"hand-authored; export refuses to overwrite it. Rename the "
+                f"model or update docs/contract/ deliberately.")
         cls = getattr(models, name)
-        path = out / f"{name}.schema.json"
+        path = out / filename
         path.write_text(json.dumps(cls.model_json_schema(), indent=2,
                                    sort_keys=True) + "\n")
         typer.echo(str(path))

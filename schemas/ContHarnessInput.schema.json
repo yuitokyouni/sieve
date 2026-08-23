@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/yuitokyouni/sieve/schemas/ContHarnessInput.schema.json",
+  "title": "ContHarnessInput",
+  "description": "Input contract of the Cont-type analysis harness (gaps G9-G11, resolved 2026-08-23 by placing the harness BESIDE the metric registry rather than inside it). MetricSpec has no `parameters` field, TestResult has no `standard_error`, and MetricRequirements is column-oriented and cannot state 'a log whose ordering.tie_break is defined and whose l1_availability is inline' — so the harness carries its own input and output schemas and the three existing schemas are left unmodified. Reverse-generated from docs/contract/examples/ContHarnessInput.example.json and pinned to it by tests/unit/test_contract_examples.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_log_ref", "event_log_header", "parameters"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "event_log_ref": {
+      "description": "How to obtain the log. A path, a URI, or a reproduction recipe — the harness does not embed the log, because a copy of the log inside its own analysis input is a second authority on what was run.",
+      "type": "string",
+      "minLength": 1
+    },
+    "event_log_digest": {
+      "description": "Contract digest of the log, canonical form 'event_log'. Optional only because a log may be regenerated rather than stored; when it is stored, omitting this makes the analysis unattributable.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "event_log_header": {
+      "description": "The log's header, copied so that the harness input states the units and ordering guarantee it was run under. REQUIREMENTS ON IT: `l1_availability` MUST be 'inline' and the declared total order must be usable — a log declaring `t` as its total order key while admitting same-t ties is rejected, because 'consecutive book states' is undefined on it.",
+      "type": "object",
+      "required": ["time_unit", "price_unit", "quantity_unit", "ordering",
+                   "l1_availability"],
+      "properties": {
+        "schema_version": { "type": "string" },
+        "log_id": { "type": "string" },
+        "engine": { "type": "object" },
+        "time_unit": { "enum": ["step", "event", "ns", "us", "ms", "s"] },
+        "time_origin": { "type": "string" },
+        "price_unit": { "type": "object" },
+        "quantity_unit": { "type": "object" },
+        "ordering": {
+          "type": "object",
+          "required": ["total_order_key", "t_unique_monotonic"],
+          "properties": {
+            "total_order_key": { "enum": ["t", "seq", "event_id"] },
+            "t_unique_monotonic": { "type": "boolean" },
+            "causality": { "enum": ["complete", "partial", "absent"] }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "total_order_key": { "const": "t" } },
+                      "required": ["total_order_key"] },
+              "then": { "properties": { "t_unique_monotonic": { "const": true } } }
+            }
+          ]
+        },
+        "instruments": { "type": "array", "items": { "type": "string" } },
+        "l1_availability": { "const": "inline" }
+      }
+    },
+    "event_log_first_events": {
+      "description": "A short prefix of the log, for orientation only. Never the analysis input.",
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "parameters": { "$ref": "https://github.com/yuitokyouni/sieve/schemas/ContHarnessParameters.schema.json" }
+  }
+}

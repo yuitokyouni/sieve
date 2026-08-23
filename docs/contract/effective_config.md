@@ -65,6 +65,16 @@ Seven entries: five environment-map keys, two top-level fields. The domain
 deliberately spans both — "which keys are hashed" is a question about the
 domain, not about where a field happens to live in the document.
 
+**The canary's narrower domain is a harness self-test, not a precedent.**
+`fixtures/canary/run_canary.py` hashes only `{engine_id, engine_version,
+rng_algorithm, rng_version}` for its environment layer, deliberately excluding
+the interpreter version, on the declared grounds that the toy engines are exact
+integer arithmetic plus `Decimal`. That waiver is scoped to the toy engines and
+carries no weight in the contract: **any real engine's exact fixture uses the
+full domain above.** Engine 1's exact fixture is minted on 2026-08-24 in a fixed
+container against the full domain, and is at `pending_generation` until then.
+Restated in `fixtures/canary/README.md`; the two must not drift apart.
+
 **Not in the domain, and why**: `hostname`, `user`, working directory, wall
 clock, CI job id. Machine-local facts that do not change the science. They may
 be recorded in `environment`; they will not move a digest. This mirrors the
@@ -86,8 +96,22 @@ is the narrower and stricter of the two.
 |---|---|---|---|
 | `config` | the resolved effective config document | object | The configuration itself, after overrides. |
 | `seed_convention_version` | top-level `seed_convention_version` | string | B8. The master-seed → named-children derivation. At a fixed `master_seed`, changing the convention changes behaviour, so it must move the hash; recording only `master_seed` would hide it. |
-| `rng_algorithm` | top-level `rng_algorithm` | string | A different generator is a different run at the same seed. |
-| `rng_version` | top-level `rng_version` | string | Same, for the stream definition. |
+
+**`rng_algorithm` and `rng_version` are deliberately NOT here** (ruling of
+2026-08-20, applied 2026-08-22). They live in the runtime domain (§2.1) only.
+
+The reason is what `behavior_config_hash` is *for*. Its one job is to be the
+precondition of a same-engine, different-environment semantic canary: two runs
+agreeing on it are asserted to be behaviourally comparable. A different
+environment is very often a different RNG build — and if the generator
+identity were inside the behaviour hash, that comparison would return
+UNVERIFIABLE precisely in the case it exists to cover. The RNG difference is
+still recorded, still hashed, and still visible: it moves
+`environment_fingerprint_digest`, which is where an environment difference
+belongs.
+
+Applied before the v0.1 freeze, so no domain-version bump is required — there
+is no prior frozen version for the old domain to be compared against.
 
 `master_seed` is **inside** `config` and therefore inside this hash. Two runs
 of one model at different seeds have different `behavior_config_hash` values —
