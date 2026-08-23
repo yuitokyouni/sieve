@@ -9,6 +9,7 @@ produces.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -119,37 +120,57 @@ def test_primary_specification_has_an_intercept():
         assert secondary["ddof"] == 1
 
 
-def test_no_minted_document_contains_a_machine_local_fact():
-    """Regression, 2026-08-23. The CanaryResult carried the running
-    interpreter version in a `reason` string; that string is inside the
-    document whose digest the run manifest references, so a machine-local fact
-    was reaching a hash. The committed examples then could not be regenerated
-    on a different interpreter, and the 3.11/3.12 CI matrix caught it.
+def _minted_documents():
+    return (sorted(EXAMPLES.glob("*.json"))
+            + sorted((REPO / "fixtures" / "canary" / "examples").glob("*.json"))
+            + sorted((REPO / "fixtures" / "canary").glob("*/expected.json")))
 
-    The contract's own rule is that volatile, machine-local facts stay out of
-    canonical forms. This asserts it for every minted document rather than for
-    the one string that broke."""
-    import getpass
-    import platform
-    import socket
 
-    volatile = {
-        "interpreter version": sys.version.split()[0],
-        "repository path": str(REPO),
-        "hostname": socket.gethostname(),
-        "platform": platform.platform(),
-        "user": getpass.getuser(),
+def test_no_minted_document_contains_the_running_interpreter_version():
+    """Regression, 2026-08-23. The CanaryResult carried the running interpreter
+    version in a `reason` string; that string sits inside the document whose
+    digest the run manifest references, so a machine-local fact was reaching a
+    hash. The committed examples then could not be regenerated on a different
+    interpreter, and the 3.11/3.12 CI matrix caught it.
+
+    Scanned as a literal because a dotted version is specific enough to scan
+    for. Short, generic values (a username, a short hostname) are NOT scanned
+    this way — the first version of this test did, matched `runner` inside the
+    example's own literal `example-runner`, and failed CI on a false positive.
+    Those are covered by the environment-mutation test below instead."""
+    version = sys.version.split()[0]
+    assert version.count(".") >= 2, version
+    for path in _minted_documents():
+        assert version not in path.read_text(encoding="utf-8"), path.name
+
+
+def test_no_minted_document_contains_the_repository_path():
+    """Absolute paths are machine-local in the same way, and long enough to
+    scan for without collisions."""
+    for path in _minted_documents():
+        assert str(REPO) not in path.read_text(encoding="utf-8"), path.name
+
+
+def test_mint_is_independent_of_the_process_environment(tmp_path):
+    """The property the two scans above only approximate: minting is a pure
+    function of the repository contents. Re-mint with the environment's
+    identity variables changed and require byte-identical output.
+
+    This covers the values a literal scan cannot safely look for — username,
+    hostname, home directory — without guessing at strings."""
+    before = {p: p.read_bytes() for p in _minted_documents()}
+    environment = {
+        **os.environ,
+        "USER": "someone-entirely-else",
+        "LOGNAME": "someone-entirely-else",
+        "HOSTNAME": "a-different-host",
+        "HOME": str(tmp_path),
     }
-    minted = (sorted(EXAMPLES.glob("*.json"))
-              + sorted((REPO / "fixtures" / "canary" / "examples").glob("*.json"))
-              + sorted((REPO / "fixtures" / "canary").glob("*/expected.json")))
-    assert minted
-    for path in minted:
-        text = path.read_text(encoding="utf-8")
-        for label, value in volatile.items():
-            if len(value) < 4:
-                continue
-            assert value not in text, f"{path.name} contains the {label}"
+    subprocess.run([sys.executable,
+                    str(REPO / "tools" / "mint_contract_examples.py")],
+                   check=True, capture_output=True, env=environment)
+    drifted = [p.name for p, blob in before.items() if p.read_bytes() != blob]
+    assert not drifted, drifted
 
 
 # ------------------------------------------------------ resolution map ----
