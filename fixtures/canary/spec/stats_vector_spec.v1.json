@@ -1,0 +1,35 @@
+{
+  "spec_id": "lob-common-surface",
+  "spec_version": "1.0.0",
+  "description": "Ordered summary of an EventLog, computed from the COMMON SURFACE ONLY. ext.* is excluded by construction so that two engines can be compared on behaviour rather than on internals. `values` in a CanaryResult is positional and MUST follow `elements` exactly; reordering or inserting an element requires a spec_version bump, which changes every downstream stats_vector digest and makes the change visible.",
+  "exclusions": [
+    "ext.* (engine-private, never compared across engines)",
+    "provisional fields seq / cause_event_id / order_id / l1 (gap-driven; a statistic resting on a provisional field would freeze the gap)",
+    "log_id, engine.*, and every header field (identity, not behaviour)"
+  ],
+  "uncertainty_convention": "Variance elements are the SAMPLE variance with ddof = 1 over the stated population. No element is an interval; where an interval is reported downstream, the +/- must state SD or SE, its ddof and its n (BACKLOG, Evidence Contract v0.1 item 2).",
+  "elements": [
+    {"index": 0, "name": "n_events_total", "dtype": "integer", "scale": 0, "unit": "count", "definition": "Number of events in the log."},
+    {"index": 1, "name": "n_order_submit", "dtype": "integer", "scale": 0, "unit": "count", "definition": "Events with event_type == order_submit."},
+    {"index": 2, "name": "n_order_cancel", "dtype": "integer", "scale": 0, "unit": "count", "definition": "Events with event_type == order_cancel."},
+    {"index": 3, "name": "n_order_fill", "dtype": "integer", "scale": 0, "unit": "count", "definition": "Fill LEGS, not trades. A trade emits two legs."},
+    {"index": 4, "name": "n_order_expire", "dtype": "integer", "scale": 0, "unit": "count", "definition": "Events with event_type == order_expire."},
+    {"index": 5, "name": "n_book_level", "dtype": "integer", "scale": 0, "unit": "count", "definition": "Terminal snapshot depth records."},
+    {"index": 6, "name": "n_trades", "dtype": "integer", "scale": 0, "unit": "count", "definition": "n_order_fill / 2. Integer by construction; a non-integer here is a two-sided-equality violation, not a rounding artefact."},
+    {"index": 7, "name": "submitted_quantity_buy", "dtype": "integer", "scale": 0, "unit": "lot", "definition": "Sum of quantity over order_submit events with side == buy."},
+    {"index": 8, "name": "submitted_quantity_sell", "dtype": "integer", "scale": 0, "unit": "lot", "definition": "Sum of quantity over order_submit events with side == sell."},
+    {"index": 9, "name": "filled_quantity_buy", "dtype": "integer", "scale": 0, "unit": "lot", "definition": "Sum of quantity over order_fill legs with side == buy."},
+    {"index": 10, "name": "filled_quantity_sell", "dtype": "integer", "scale": 0, "unit": "lot", "definition": "Sum of quantity over order_fill legs with side == sell."},
+    {"index": 11, "name": "cancelled_quantity_buy", "dtype": "integer", "scale": 0, "unit": "lot", "definition": "Sum of quantity WITHDRAWN by order_cancel events with side == buy."},
+    {"index": 12, "name": "cancelled_quantity_sell", "dtype": "integer", "scale": 0, "unit": "lot", "definition": "Sum of quantity WITHDRAWN by order_cancel events with side == sell."},
+    {"index": 13, "name": "expired_quantity_buy", "dtype": "integer", "scale": 0, "unit": "lot", "definition": "Sum of quantity removed by the mechanism, side == buy (an unfilled market-order remainder is recorded here rather than dropped)."},
+    {"index": 14, "name": "expired_quantity_sell", "dtype": "integer", "scale": 0, "unit": "lot", "definition": "As above, side == sell."},
+    {"index": 15, "name": "terminal_resting_quantity_buy", "dtype": "integer", "scale": 0, "unit": "lot", "definition": "Sum of quantity over terminal book_level events with side == buy."},
+    {"index": 16, "name": "terminal_resting_quantity_sell", "dtype": "integer", "scale": 0, "unit": "lot", "definition": "As above, side == sell."},
+    {"index": 17, "name": "terminal_best_bid", "dtype": "integer", "scale": 0, "unit": "tick", "definition": "Highest buy price in the terminal snapshot; null if the side is empty."},
+    {"index": 18, "name": "terminal_best_ask", "dtype": "integer", "scale": 0, "unit": "tick", "definition": "Lowest sell price in the terminal snapshot; null if the side is empty."},
+    {"index": 19, "name": "terminal_spread", "dtype": "integer", "scale": 0, "unit": "tick", "definition": "terminal_best_ask - terminal_best_bid; null if either side is empty. Negative means a crossed book."},
+    {"index": 20, "name": "trade_price_mean", "dtype": "decimal", "scale": 12, "unit": "tick", "definition": "Arithmetic mean execution price over trades, taken once per trade via the buy leg."},
+    {"index": 21, "name": "trade_price_variance", "dtype": "decimal", "scale": 12, "unit": "tick^2", "definition": "Sample variance (ddof = 1) of the same trade prices. THE ONE ELEMENT WHOSE VALUE IS SUMMATION-ORDER SENSITIVE: on prices near 1000 the sum-of-squares form loses roughly 1e-10 tick^2 to cancellation against the two-pass form. It is kept in the vector on purpose, as the fixture's only honest source of a non-zero numerical tolerance."}
+  ]
+}

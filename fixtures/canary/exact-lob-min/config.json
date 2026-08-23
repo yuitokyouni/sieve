@@ -1,0 +1,19 @@
+{
+  "instrument": "CANARY",
+  "tick_size": 1,
+  "n_agents": 6,
+  "n_steps": 40,
+  "initial_mid": 1000,
+  "max_offset": 3,
+  "max_qty": 3,
+  "cancel_numerator": 3,
+  "cancel_denominator": 20,
+  "seed": 20260821,
+  "shock": {
+    "t": 20,
+    "type": "market_order",
+    "side": "buy",
+    "quantity": 5,
+    "actor_id": "harness"
+  }
+}
