@@ -90,7 +90,7 @@ def build_manifest() -> dict:
         "environment": {
             "python": "3.11", "platform": "linux-x86_64",
             "numpy": "not-imported", "blas": "not-imported",
-            "dependency_lock_digest": "0" * 64, "hostname": "example-runner",
+            "dependency_lock_digest": "0" * 64, "hostname": "illustrative-host",
         },
         "input_artifact_digests": {
             "canary/exact-lob-min/config.json": {
