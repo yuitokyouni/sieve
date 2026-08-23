@@ -32,6 +32,6 @@ Recorded here so that "10 of 10" is not read as "nothing is open".
 | **G7** — comparison-table strictness | deferred post-G0, with a reason. The canary keeps the strict table. |
 | **Parquet content canonicalization** | no canonical form; a Parquet artifact cannot carry a contract digest. Costs nothing today because nothing binds to a byte digest. |
 | **8/18 quarantine table** (`F8-R1`–`R3`) | absent from both repositories, every branch. The verification-scope note is preserved verbatim and applied nowhere. |
-| **8/19 comparison table**, 20 items | absent. The 20-item check against this freeze could not be performed. |
+| **8/19 comparison table**, 20 items | never committed to any ref (chat-output-only, not an unmerged branch). The 20-item check against this freeze could not be performed. |
 | **The 2026-08-19 Level-I decision** | not located. G1 was resolved on the options as stated, not against it. |
 | **Engine 1 exact fixture** | `pending_generation` by design — minted 2026-08-24 in a fixed container against the full runtime fingerprint domain. |

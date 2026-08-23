@@ -262,7 +262,7 @@ the authority it is supposed to be.
 | document | expected | search |
 |---|---|---|
 | 8/18 quarantine table (contains `F8-R1`–`R3`) | `financial-abm-lab` | `F8-R` returns **zero hits** across both repositories, every branch. The verification-scope note it was to carry — *"holds for the paired-difference computation; run regeneration is out of scope because the outputs went to `/tmp` undigested"* — is preserved verbatim here and in `W1_review.md`, and is applied nowhere. |
-| 8/19 comparison table, 20 items (`sieve/docs/contract/schema.md`) | `sieve` | absent from every branch of both repositories. The 20-item check against this freeze could therefore not be performed. |
+| 8/19 comparison table, 20 items (`sieve/docs/contract/schema.md`) | `sieve` | **never committed to any ref.** `git log --all -- docs/contract/schema.md` is empty, as is a search for a file of that name anywhere in either repository's history (8 refs in `sieve`, 82 in `financial-abm-lab`). This is a different failure from the 8/20 branch, which existed and was merely unmerged: the 8/20 session ran under "no commits, markdown to chat", so the table was produced into the chat transcript and never entered a repository at all. The 20-item check against this freeze could therefore not be performed. |
 
 ---
 
